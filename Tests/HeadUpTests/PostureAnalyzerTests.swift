@@ -29,6 +29,22 @@ struct PostureAnalyzerTests {
         #expect(!repeated.shouldNotify)
     }
 
+    @Test func reportsThresholdCrossingBeforeReminderDelay() throws {
+        let analyzer = PostureAnalyzer()
+        analyzer.calibrate(uprightPitch: 0, lookDownPitch: 20)
+        let reading = try #require(analyzer.process(
+            pitch: 18,
+            at: Date(timeIntervalSince1970: 1_000),
+            threshold: 10,
+            reminderDelay: 20,
+            cooldown: 60
+        ))
+
+        #expect(reading.isBeyondThreshold)
+        #expect(!reading.isWarning)
+        #expect(!reading.shouldNotify)
+    }
+
     @Test func recoveryResetsWarningEpisode() throws {
         let analyzer = PostureAnalyzer()
         analyzer.calibrate(uprightPitch: 0, lookDownPitch: 20)

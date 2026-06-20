@@ -55,6 +55,7 @@ final class PostureAnalyzer {
         return PostureReading(
             angle: filteredAngle,
             sustainedDuration: duration,
+            isBeyondThreshold: filteredAngle >= threshold,
             isWarning: isWarning,
             shouldNotify: shouldNotify
         )

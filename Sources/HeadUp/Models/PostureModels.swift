@@ -28,6 +28,7 @@ enum PostureStatus: Equatable {
     case paused
     case calibrating(CalibrationStage)
     case good
+    case caution
     case warning
 
     var title: String {
@@ -39,6 +40,7 @@ enum PostureStatus: Equatable {
         case .paused: return "监测已暂停"
         case .calibrating(let stage): return stage.instruction
         case .good: return "姿势良好"
+        case .caution: return "正在低头"
         case .warning: return "注意低头"
         }
     }
@@ -47,6 +49,7 @@ enum PostureStatus: Equatable {
 struct PostureReading {
     let angle: Double
     let sustainedDuration: TimeInterval
+    let isBeyondThreshold: Bool
     let isWarning: Bool
     let shouldNotify: Bool
 }

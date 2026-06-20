@@ -12,6 +12,7 @@ final class PostureStore: ObservableObject {
     @Published private(set) var calibrationProgress = 0.0
     @Published private(set) var remindersToday = 0
     @Published private(set) var notificationsAllowed: Bool?
+    @Published private(set) var recentPostureBins: [PostureBinState] = Array(repeating: .empty, count: 30)
     @Published var isMonitoring = true {
         didSet {
             if isMonitoring {
@@ -30,15 +31,29 @@ final class PostureStore: ObservableObject {
     private let analyzer = PostureAnalyzer()
     private let notificationService = NotificationService()
     private let reminderHUDController = ReminderHUDController()
+    private let defaults = UserDefaults.standard
+    private var postureHistory: PostureHistory = {
+        guard let data = UserDefaults.standard.data(forKey: DefaultsKey.history),
+              let entries = try? JSONDecoder().decode([PostureHistoryEntry].self, from: data) else {
+            return PostureHistory()
+        }
+        return PostureHistory(entries: entries)
+    }()
     private var calibrationStartedAt: Date?
     private var calibrationSamples: [Double] = []
     private var uprightPitch: Double?
     private var totalSamples = 0
     private var goodSamples = 0
+    private var lastStatisticsAt: Date?
 
     private enum DefaultsKey {
         static let baseline = "posture.baselinePitch"
         static let direction = "posture.downwardDirection"
+        static let statsDay = "stats.day"
+        static let totalSamples = "stats.totalSamples"
+        static let goodSamples = "stats.goodSamples"
+        static let reminders = "stats.reminders"
+        static let history = "stats.recentHistory"
     }
 
     init() {
@@ -49,6 +64,9 @@ final class PostureStore: ObservableObject {
                 ? 1
                 : defaults.double(forKey: DefaultsKey.direction)
         }
+
+        loadDailyStatistics(at: Date())
+        recentPostureBins = postureHistory.bins()
 
         motionService.onSample = { [weak self] sample in
             self?.handle(sample)
@@ -89,7 +107,7 @@ final class PostureStore: ObservableObject {
 
     var menuBarIcon: String {
         switch status {
-        case .warning: return "person.fill.turn.down"
+        case .warning, .caution: return "person.fill.turn.down"
         case .good: return "person.fill.checkmark"
         case .calibrating: return "scope"
         default: return "person.crop.circle.badge.questionmark"
@@ -152,14 +170,12 @@ final class PostureStore: ObservableObject {
 
         angle = reading.angle
         sustainedDuration = reading.sustainedDuration
-        status = reading.isWarning ? .warning : .good
-        totalSamples += 1
-        if reading.angle < settings.threshold {
-            goodSamples += 1
-        }
+        status = reading.isWarning ? .warning : (reading.isBeyondThreshold ? .caution : .good)
+        recordStatistics(reading, at: sample.timestamp)
 
         if reading.shouldNotify {
             remindersToday += 1
+            defaults.set(remindersToday, forKey: DefaultsKey.reminders)
             presentReminder(angle: reading.angle)
         }
     }
@@ -224,5 +240,54 @@ final class PostureStore: ObservableObject {
             reminderHUDController.show(angle: angle)
             notificationService.playFallbackSound()
         }
+    }
+
+    private func recordStatistics(_ reading: PostureReading, at date: Date) {
+        ensureCurrentDay(at: date)
+        let isGood = reading.angle < settings.threshold
+
+        if lastStatisticsAt.map({ date.timeIntervalSince($0) >= 1 }) ?? true {
+            lastStatisticsAt = date
+            totalSamples += 1
+            if isGood { goodSamples += 1 }
+            defaults.set(totalSamples, forKey: DefaultsKey.totalSamples)
+            defaults.set(goodSamples, forKey: DefaultsKey.goodSamples)
+            objectWillChange.send()
+        }
+
+        if postureHistory.record(isGood: isGood, at: date) {
+            recentPostureBins = postureHistory.bins(now: date)
+            if let data = try? JSONEncoder().encode(postureHistory.entries) {
+                defaults.set(data, forKey: DefaultsKey.history)
+            }
+        }
+    }
+
+    private func loadDailyStatistics(at date: Date) {
+        let day = Calendar.current.startOfDay(for: date).timeIntervalSince1970
+        guard defaults.double(forKey: DefaultsKey.statsDay) == day else {
+            resetDailyStatistics(day: day)
+            return
+        }
+        totalSamples = defaults.integer(forKey: DefaultsKey.totalSamples)
+        goodSamples = defaults.integer(forKey: DefaultsKey.goodSamples)
+        remindersToday = defaults.integer(forKey: DefaultsKey.reminders)
+    }
+
+    private func ensureCurrentDay(at date: Date) {
+        let day = Calendar.current.startOfDay(for: date).timeIntervalSince1970
+        if defaults.double(forKey: DefaultsKey.statsDay) != day {
+            resetDailyStatistics(day: day)
+        }
+    }
+
+    private func resetDailyStatistics(day: TimeInterval) {
+        totalSamples = 0
+        goodSamples = 0
+        remindersToday = 0
+        defaults.set(day, forKey: DefaultsKey.statsDay)
+        defaults.set(0, forKey: DefaultsKey.totalSamples)
+        defaults.set(0, forKey: DefaultsKey.goodSamples)
+        defaults.set(0, forKey: DefaultsKey.reminders)
     }
 }
