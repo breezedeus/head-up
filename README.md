@@ -1,5 +1,7 @@
 # 抬头 HeadUp
 
+[简体中文](README.md) · [English](README.en.md)
+
 一个使用 AirPods 头部运动数据提醒你避免长时间低头的原生 macOS 菜单栏 App。
 
 当前面板包含实时低头角度、提醒倒计时、最近 60 分钟姿态时间线，以及按日期持久化的今日良好率和提醒触发次数。所有姿态数据仅保存在本机。
@@ -12,7 +14,7 @@
 
 ## 安装发行版
 
-从 [GitHub Releases](https://github.com/breezedeus/head-up/releases) 下载最新的 `HeadUp-版本号.zip`，可用同名 `.sha256` 文件校验下载内容。解压后将 `HeadUp.app` 拖入“应用程序”文件夹再打开。正式发行包使用 Developer ID 签名并经过 Apple 公证，不需要绕过 Gatekeeper。
+项目目前尚未提供经过 Developer ID 签名和 Apple 公证的公开发行包。开发测试请从源码构建；未来的正式版本会发布到 [GitHub Releases](https://github.com/breezedeus/head-up/releases)，并提供对应的 `.sha256` 校验文件。
 
 ## 运行
 
@@ -44,7 +46,7 @@ swift test
 
 ## 发布
 
-公开发行版本使用通用 Release 二进制、Developer ID、Hardened Runtime 和 Apple 公证。完整步骤见 [RELEASING.md](RELEASING.md)，隐私说明见 [PRIVACY.md](PRIVACY.md)。
+发布流水线已支持通用 Release 二进制、Developer ID、Hardened Runtime 和 Apple 公证，但在配置开发者证书前不会发布正式安装包。完整步骤见 [RELEASING.md](RELEASING.md)，隐私说明见 [PRIVACY.md](PRIVACY.md)。
 
 如果系统通知被关闭，设置页会显示入口，App 会改用置顶 HUD 和系统提示音提醒。设置页的“测试提醒”可以随时验证提醒链路。
 
