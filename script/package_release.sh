@@ -36,6 +36,7 @@ rm -rf "$RELEASE_DIR"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_MACOS/$APP_NAME"
 chmod +x "$APP_MACOS/$APP_NAME"
+cp -R "$ROOT_DIR/Sources/HeadUp/Resources/MenuBarIcons" "$APP_RESOURCES/MenuBarIcons"
 
 cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_RESOURCES/HeadUp.icns"
 

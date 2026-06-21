@@ -21,7 +21,7 @@ struct HeadUpApp: App {
         MenuBarExtra {
             DashboardView(store: store)
         } label: {
-            Image(systemName: store.menuBarIcon)
+            MenuBarStatusIcon(status: store.status)
                 .accessibilityLabel("抬头：\(store.status.title)")
         }
         .menuBarExtraStyle(.window)
