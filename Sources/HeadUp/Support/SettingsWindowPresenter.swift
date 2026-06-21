@@ -3,19 +3,20 @@ import SwiftUI
 
 enum HeadUpWindowID {
     static let settings = "settings"
+    static let guide = "guide"
 }
 
 @MainActor
-enum SettingsWindowPresenter {
-    static func present(using openWindow: OpenWindowAction) {
-        HeadUpLog.windowing.notice("Settings window requested")
+enum HeadUpWindowPresenter {
+    static func present(id: String, using openWindow: OpenWindowAction) {
+        HeadUpLog.windowing.notice("Window requested: \(id, privacy: .public)")
         NSApp.activate(ignoringOtherApps: true)
-        openWindow(id: HeadUpWindowID.settings)
-        bringToFront(attempt: 0)
+        openWindow(id: id)
+        bringToFront(id: id, attempt: 0)
     }
 
-    private static func bringToFront(attempt: Int) {
-        if let window = NSApp.windows.first(where: isSettingsWindow) {
+    private static func bringToFront(id: String, attempt: Int) {
+        if let window = NSApp.windows.first(where: { isWindow($0, id: id) }) {
             window.level = .normal
             window.collectionBehavior.insert(.moveToActiveSpace)
             window.makeKeyAndOrderFront(nil)
@@ -31,13 +32,14 @@ enum SettingsWindowPresenter {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-            bringToFront(attempt: attempt + 1)
+            bringToFront(id: id, attempt: attempt + 1)
         }
     }
 
-    private static func isSettingsWindow(_ window: NSWindow) -> Bool {
+    private static func isWindow(_ window: NSWindow, id: String) -> Bool {
         guard !(window is NSPanel) else { return false }
-        if window.title == "抬头设置" { return true }
-        return window.identifier?.rawValue.localizedCaseInsensitiveContains(HeadUpWindowID.settings) == true
+        let expectedTitle = id == HeadUpWindowID.settings ? "抬头设置" : "抬头使用指南"
+        if window.title == expectedTitle { return true }
+        return window.identifier?.rawValue.localizedCaseInsensitiveContains(id) == true
     }
 }

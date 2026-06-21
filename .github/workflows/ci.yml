@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test
+        run: swift test
+      - name: Smoke-test release packaging
+        env:
+          HEADUP_SIGNING_IDENTITY: '-'
+        run: |
+          ./script/package_release.sh
+          lipo -info dist/release/HeadUp.app/Contents/MacOS/HeadUp
+          codesign --verify --deep --strict --verbose=2 dist/release/HeadUp.app
+          for checksum in dist/release/HeadUp-*.sha256; do
+            shasum -a 256 -c "$checksum"
+          done
+          test -f dist/release/HeadUp-$(tr -d '[:space:]' < VERSION).dSYM.zip

@@ -1,6 +1,7 @@
 import Foundation
 
 final class PostureAnalyzer {
+    static let minimumCalibrationDelta = 5.0
     var baselinePitch: Double?
     var downwardDirection: Double = 1
 
@@ -11,11 +12,15 @@ final class PostureAnalyzer {
 
     var isCalibrated: Bool { baselinePitch != nil }
 
-    func calibrate(uprightPitch: Double, lookDownPitch: Double) {
+    @discardableResult
+    func calibrate(uprightPitch: Double, lookDownPitch: Double) -> Bool {
+        let delta = Self.normalizedAngle(lookDownPitch - uprightPitch)
+        guard abs(delta) >= Self.minimumCalibrationDelta else { return false }
         baselinePitch = uprightPitch
-        downwardDirection = lookDownPitch >= uprightPitch ? 1 : -1
+        downwardDirection = delta >= 0 ? 1 : -1
         resetEpisode()
         filteredAngle = 0
+        return true
     }
 
     func process(
@@ -55,6 +60,7 @@ final class PostureAnalyzer {
         return PostureReading(
             angle: filteredAngle,
             sustainedDuration: duration,
+            isBeyondThreshold: filteredAngle >= threshold,
             isWarning: isWarning,
             shouldNotify: shouldNotify
         )

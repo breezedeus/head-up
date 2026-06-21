@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.openWindow) private var openWindow
+    @State private var confirmsDataReset = false
+    @State private var diagnosticsCopied = false
     @ObservedObject var store: PostureStore
     @ObservedObject var settings: AppSettings
 
@@ -11,6 +14,24 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("通用") {
+                Toggle(
+                    "登录时自动启动",
+                    isOn: Binding(
+                        get: { store.launchAtLogin },
+                        set: { store.setLaunchAtLogin($0) }
+                    )
+                )
+                if let error = store.launchAtLoginError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                }
+                if !HeadUpAppInfo.isInstalledInApplications {
+                    Label("建议先将抬头移到“应用程序”文件夹，登录启动会更稳定", systemImage: "folder.badge.questionmark")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Section("姿势判断") {
                 LabeledContent("低头阈值") {
                     HStack {
@@ -47,7 +68,7 @@ struct SettingsView: View {
 
             Section("通知") {
                 Toggle(
-                    "低头持续过久时发送系统通知",
+                    "同时发送系统通知",
                     isOn: Binding(
                         get: { settings.notificationsEnabled },
                         set: { enabled in
@@ -73,6 +94,26 @@ struct SettingsView: View {
                 }
             }
 
+            Section("数据") {
+                Button("清除姿态历史…", role: .destructive) {
+                    confirmsDataReset = true
+                }
+            }
+
+            Section("关于") {
+                LabeledContent("版本", value: HeadUpAppInfo.versionDescription)
+                Button("使用指南") {
+                    HeadUpWindowPresenter.present(id: HeadUpWindowID.guide, using: openWindow)
+                }
+                Link("隐私说明", destination: HeadUpLinks.privacy)
+                Link("反馈问题", destination: HeadUpLinks.issues)
+                Link("查看更新", destination: HeadUpLinks.releases)
+                Button(diagnosticsCopied ? "诊断信息已复制" : "复制诊断信息") {
+                    store.copyDiagnosticInfo()
+                    diagnosticsCopied = true
+                }
+            }
+
             Section {
                 Text("抬头只根据 AirPods 的头部方向判断低头程度，不是医疗设备，也无法单独判断背部或肩膀姿势。")
                     .font(.caption)
@@ -80,6 +121,12 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 310)
+        .frame(width: 480, height: 510)
+        .confirmationDialog("清除姿态历史？", isPresented: $confirmsDataReset) {
+            Button("清除", role: .destructive) { store.clearPostureHistory() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("这会删除今日统计和最近 60 分钟时间线，校准与提醒设置会保留。")
+        }
     }
 }

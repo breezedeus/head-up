@@ -20,6 +20,10 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
     private let manager = CMHeadphoneMotionManager()
     private var hasLoggedFirstSample = false
+    private var motionUpdatesEnabled = true
+    private var reportedConnected = false
+    private var connectionWatchdog: DispatchWorkItem?
+    private let connectionTimeout: TimeInterval = 5
     private let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "com.king.headup.motion"
@@ -43,15 +47,34 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
         HeadUpLog.motion.notice("Starting headphone connection monitoring")
         manager.startConnectionStatusUpdates()
+        DispatchQueue.main.async { [weak self] in
+            self?.updateVerifiedConnection(false, force: true)
+        }
         startMotionUpdatesIfAvailable()
     }
 
     func stop() {
+        connectionWatchdog?.cancel()
+        connectionWatchdog = nil
         manager.stopDeviceMotionUpdates()
         manager.stopConnectionStatusUpdates()
+        hasLoggedFirstSample = false
+    }
+
+    func setMotionUpdatesEnabled(_ enabled: Bool) {
+        motionUpdatesEnabled = enabled
+        if enabled {
+            startMotionUpdatesIfAvailable()
+        } else {
+            connectionWatchdog?.cancel()
+            connectionWatchdog = nil
+            manager.stopDeviceMotionUpdates()
+            HeadUpLog.motion.notice("Headphone device-motion updates paused")
+        }
     }
 
     private func startMotionUpdatesIfAvailable() {
+        guard motionUpdatesEnabled else { return }
         guard manager.isDeviceMotionAvailable else {
             HeadUpLog.motion.notice("Headphone motion is currently unavailable")
             DispatchQueue.main.async { [weak self] in
@@ -62,10 +85,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
         guard !manager.isDeviceMotionActive else { return }
 
-        HeadUpLog.motion.notice("Starting headphone device-motion updates")
-        DispatchQueue.main.async { [weak self] in
-            self?.onConnectionChanged?(true)
-        }
+        HeadUpLog.motion.notice("Starting headphone device-motion updates; waiting for connection evidence")
 
         manager.startDeviceMotionUpdates(to: queue) { [weak self] motion, error in
             if let error {
@@ -86,7 +106,12 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
                 timestamp: Date()
             )
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self,
+                      self.motionUpdatesEnabled,
+                      self.manager.isDeviceMotionActive else { return }
+                self.updateVerifiedConnection(true)
+                self.armConnectionWatchdog()
                 self.onSample?(sample)
             }
         }
@@ -95,6 +120,13 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
     func headphoneMotionManagerDidConnect(_ manager: CMHeadphoneMotionManager) {
         HeadUpLog.motion.notice("Motion-capable headphones connected")
         startMotionUpdatesIfAvailable()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.updateVerifiedConnection(true)
+            if self.motionUpdatesEnabled {
+                self.armConnectionWatchdog()
+            }
+        }
     }
 
     func headphoneMotionManagerDidDisconnect(_ manager: CMHeadphoneMotionManager) {
@@ -102,7 +134,26 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         hasLoggedFirstSample = false
         manager.stopDeviceMotionUpdates()
         DispatchQueue.main.async { [weak self] in
-            self?.onConnectionChanged?(false)
+            self?.connectionWatchdog?.cancel()
+            self?.connectionWatchdog = nil
+            self?.updateVerifiedConnection(false)
         }
+    }
+
+    private func updateVerifiedConnection(_ connected: Bool, force: Bool = false) {
+        guard force || reportedConnected != connected else { return }
+        reportedConnected = connected
+        onConnectionChanged?(connected)
+    }
+
+    private func armConnectionWatchdog() {
+        connectionWatchdog?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.motionUpdatesEnabled, self.reportedConnected else { return }
+            HeadUpLog.motion.notice("No headphone motion samples within liveness window; marking disconnected")
+            self.updateVerifiedConnection(false)
+        }
+        connectionWatchdog = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + connectionTimeout, execute: workItem)
     }
 }

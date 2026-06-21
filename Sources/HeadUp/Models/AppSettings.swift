@@ -32,6 +32,6 @@ final class AppSettings: ObservableObject {
         threshold = defaults.object(forKey: Key.threshold) as? Double ?? 15
         reminderDelay = defaults.object(forKey: Key.reminderDelay) as? Double ?? 20
         cooldown = defaults.object(forKey: Key.cooldown) as? Double ?? 180
-        notificationsEnabled = defaults.object(forKey: Key.notifications) as? Bool ?? true
+        notificationsEnabled = defaults.object(forKey: Key.notifications) as? Bool ?? false
     }
 }

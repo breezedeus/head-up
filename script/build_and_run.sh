@@ -13,6 +13,8 @@ APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+BUILD_NUMBER="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -24,6 +26,10 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
+mkdir -p "$APP_CONTENTS/Resources"
+if [[ -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
+  cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_CONTENTS/Resources/HeadUp.icns"
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -40,6 +46,18 @@ cat >"$INFO_PLIST" <<PLIST
   <string>抬头</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>zh_CN</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$VERSION</string>
+  <key>CFBundleVersion</key>
+  <string>$BUILD_NUMBER</string>
+  <key>CFBundleIconFile</key>
+  <string>HeadUp</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.healthcare-fitness</string>
   <key>LSMinimumSystemVersion</key>
   <string>$MIN_SYSTEM_VERSION</string>
   <key>LSUIElement</key>
@@ -58,7 +76,14 @@ PLIST
 codesign --force --deep --sign - "$APP_BUNDLE"
 
 open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+  local open_args=(-n)
+  if [[ -n "${HEADUP_WELCOME_SNAPSHOT:-}" ]]; then
+    open_args+=(--env "HEADUP_WELCOME_SNAPSHOT=$HEADUP_WELCOME_SNAPSHOT")
+  fi
+  if [[ "${HEADUP_AUTOCOMPLETE_ONBOARDING:-}" == "1" ]]; then
+    open_args+=(--env "HEADUP_AUTOCOMPLETE_ONBOARDING=1")
+  fi
+  /usr/bin/open "${open_args[@]}" "$APP_BUNDLE"
 }
 
 case "$MODE" in
