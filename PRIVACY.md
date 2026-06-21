@@ -4,7 +4,7 @@ HeadUp is designed to process posture information on the Mac where it runs.
 
 ## Data HeadUp uses
 
-- Head orientation, rotation, acceleration, and motion-activity classifications supplied by Apple's Core Motion framework for compatible AirPods.
+- Head orientation and, on macOS 15 or later, motion-activity classifications supplied by Apple's Core Motion framework for compatible AirPods.
 - Calibration settings, reminder preferences, daily summary counters, and up to 60 minutes of downsampled posture history.
 
 ## Storage and transmission

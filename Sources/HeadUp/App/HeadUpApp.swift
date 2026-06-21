@@ -1,10 +1,14 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let onboardingWindowController = OnboardingWindowController()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         HeadUpLog.lifecycle.notice("HeadUp launched as a menu bar accessory")
+        onboardingWindowController.showIfNeeded()
     }
 }
 
@@ -25,7 +29,13 @@ struct HeadUpApp: App {
         Window("抬头设置", id: HeadUpWindowID.settings) {
             SettingsView(store: store)
         }
-        .defaultSize(width: 460, height: 390)
+        .defaultSize(width: 480, height: 510)
+        .windowResizability(.contentSize)
+
+        Window("抬头使用指南", id: HeadUpWindowID.guide) {
+            GettingStartedView()
+        }
+        .defaultSize(width: 540, height: 520)
         .windowResizability(.contentSize)
     }
 }

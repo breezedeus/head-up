@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @Environment(\.openWindow) private var openWindow
     @State private var confirmsDataReset = false
     @ObservedObject var store: PostureStore
     @ObservedObject var settings: AppSettings
@@ -93,6 +94,16 @@ struct SettingsView: View {
                 }
             }
 
+            Section("关于") {
+                LabeledContent("版本", value: HeadUpAppInfo.versionDescription)
+                Button("使用指南") {
+                    HeadUpWindowPresenter.present(id: HeadUpWindowID.guide, using: openWindow)
+                }
+                Link("隐私说明", destination: HeadUpLinks.privacy)
+                Link("反馈问题", destination: HeadUpLinks.issues)
+                Link("查看更新", destination: HeadUpLinks.releases)
+            }
+
             Section {
                 Text("抬头只根据 AirPods 的头部方向判断低头程度，不是医疗设备，也无法单独判断背部或肩膀姿势。")
                     .font(.caption)
@@ -100,7 +111,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 390)
+        .frame(width: 480, height: 510)
         .confirmationDialog("清除姿态历史？", isPresented: $confirmsDataReset) {
             Button("清除", role: .destructive) { store.clearPostureHistory() }
             Button("取消", role: .cancel) {}

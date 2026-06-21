@@ -21,7 +21,7 @@ struct DashboardView: View {
                     .font(.title2.weight(.semibold))
                 Spacer()
                 Button {
-                    SettingsWindowPresenter.present(using: openWindow)
+                    HeadUpWindowPresenter.present(id: HeadUpWindowID.settings, using: openWindow)
                 } label: {
                     Image(systemName: "gearshape")
                 }
@@ -30,6 +30,10 @@ struct DashboardView: View {
 
                 Menu {
                     Button("测试提醒") { store.testReminder() }
+                    Button("使用指南") {
+                        HeadUpWindowPresenter.present(id: HeadUpWindowID.guide, using: openWindow)
+                    }
+                    Button("查看更新") { NSWorkspace.shared.open(HeadUpLinks.releases) }
                     Divider()
                     Button("退出抬头") { NSApplication.shared.terminate(nil) }
                 } label: {
@@ -115,7 +119,7 @@ struct DashboardView: View {
                     .foregroundStyle(.tertiary)
                 Spacer()
                 Button("设置…") {
-                    SettingsWindowPresenter.present(using: openWindow)
+                    HeadUpWindowPresenter.present(id: HeadUpWindowID.settings, using: openWindow)
                 }
                 .buttonStyle(.plain)
                 .font(.caption)
@@ -222,7 +226,11 @@ struct DashboardView: View {
                 .font(.system(size: 38))
                 .foregroundStyle(.orange)
             Text("需要运动与健身权限").font(.headline)
-            Button("打开系统设置") { store.openMotionPrivacySettings() }
+            HStack {
+                Button("打开系统设置") { store.openMotionPrivacySettings() }
+                Button("重新检测") { store.retryMotionAccess() }
+                    .buttonStyle(.borderedProminent)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 220)
     }

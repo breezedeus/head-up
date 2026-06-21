@@ -34,10 +34,12 @@ final class HeadphoneActivityService {
             guard let activity else { return }
 
             let value: HeadphoneActivity
-            if activity.walking {
-                value = .walking
+            if activity.confidence == .low {
+                value = .unknown
             } else if activity.running {
                 value = .running
+            } else if activity.walking {
+                value = .walking
             } else if activity.stationary {
                 value = .stationary
             } else {

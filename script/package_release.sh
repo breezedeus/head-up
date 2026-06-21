@@ -48,6 +48,8 @@ cat >"$APP_CONTENTS/Info.plist" <<PLIST
   <key>CFBundleName</key><string>抬头</string>
   <key>CFBundleDisplayName</key><string>抬头</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleDevelopmentRegion</key><string>zh_CN</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
   <key>CFBundleIconFile</key><string>HeadUp</string>

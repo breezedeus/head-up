@@ -20,7 +20,9 @@ HeadUp currently uses calibrated relative pitch for low-head detection. Quaterni
 
 [`CMHeadphoneActivityManager`](https://developer.apple.com/documentation/coremotion/cmheadphoneactivitymanager) delivers [`CMMotionActivity`](https://developer.apple.com/documentation/coremotion/cmmotionactivity) classifications and confidence. Public classifications relevant on macOS are stationary, walking, running, and unknown. Apple's SDK notes that automotive and cycling are not currently supported for headphone activity.
 
-HeadUp uses walking/running updates to suspend posture reminders while the wearer is moving. macOS 14 continues to use head orientation without activity classification.
+HeadUp uses medium- or high-confidence walking/running updates to suspend posture reminders while the wearer is moving. Low-confidence classifications remain unknown instead of suppressing reminders. macOS 14 continues to use head orientation without activity classification.
+
+The same manager can report compatible-headphone connected/disconnected status. HeadUp already obtains equivalent connection events from `CMHeadphoneMotionManagerDelegate`, so starting a second status stream would not add a new posture signal.
 
 ## What AirPods cannot determine alone
 
@@ -39,3 +41,7 @@ Those require an explicit user mode, another sensor, or optional camera-based bo
 2. Collect opt-in local diagnostics for rotation and acceleration thresholds without uploading raw motion data.
 3. Add manual sitting and standing calibration profiles.
 4. Evaluate an optional, clearly permissioned camera mode for shoulder/torso posture.
+
+## API audit conclusion
+
+The macOS 26.2 SDK exposes two public Core Motion entry points specifically for headphones: `CMHeadphoneMotionManager` (plus its connection delegate) and `CMHeadphoneActivityManager`. Other AirPods-facing audio, routing, and spatial-audio APIs do not provide additional body-pose measurements. Full-body posture therefore remains outside an AirPods-only implementation.

@@ -57,6 +57,8 @@ final class PostureStore: ObservableObject {
     private var goodSamples = 0
     private var lastStatisticsAt: Date?
     private var lastMotionSampleAt: Date?
+    private var onboardingObserver: NSObjectProtocol?
+    private var hasStartedServices = false
 
     private enum DefaultsKey {
         static let baseline = "posture.baselinePitch"
@@ -103,15 +105,25 @@ final class PostureStore: ObservableObject {
             self?.handleActivity(activity)
         }
 
-        if settings.notificationsEnabled {
-            refreshNotificationAuthorization()
+        onboardingObserver = NotificationCenter.default.addObserver(
+            forName: .headUpOnboardingCompleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.startServices()
+            }
         }
-        motionService.start()
-        activityService.start()
-        refreshStatus()
+
+        if defaults.bool(forKey: HeadUpDefaultsKey.onboardingCompleted) {
+            startServices()
+        }
     }
 
     deinit {
+        if let onboardingObserver {
+            NotificationCenter.default.removeObserver(onboardingObserver)
+        }
         motionService.stop()
         activityService.stop()
     }
@@ -151,6 +163,26 @@ final class PostureStore: ObservableObject {
     func openMotionPrivacySettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Motion") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    func retryMotionAccess() {
+        status = .disconnected
+        motionService.stop()
+        activityService.stop()
+        motionService.start()
+        activityService.start()
+        refreshStatus()
+    }
+
+    private func startServices() {
+        guard !hasStartedServices else { return }
+        hasStartedServices = true
+        if settings.notificationsEnabled {
+            refreshNotificationAuthorization()
+        }
+        motionService.start()
+        activityService.start()
+        refreshStatus()
     }
 
     func refreshNotificationAuthorization() {
