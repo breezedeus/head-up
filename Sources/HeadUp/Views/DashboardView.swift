@@ -27,6 +27,7 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
                 .help("设置")
+                .accessibilityLabel("打开设置")
 
                 Menu {
                     Button("测试提醒") { store.testReminder() }
@@ -41,6 +42,7 @@ struct DashboardView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .accessibilityLabel("更多操作")
             }
 
             HStack(spacing: 8) {

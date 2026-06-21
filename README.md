@@ -8,7 +8,11 @@
 
 - macOS 14 或更高版本
 - 支持头部追踪的 AirPods，并已连接到 Mac
-- 首次运行时允许“运动与健身”及通知权限
+- 首次使用监测时允许“运动与健身”权限；系统通知为可选项
+
+## 安装发行版
+
+从 [GitHub Releases](https://github.com/breezedeus/head-up/releases) 下载最新的 `HeadUp-版本号.zip`，可用同名 `.sha256` 文件校验下载内容。解压后将 `HeadUp.app` 拖入“应用程序”文件夹再打开。正式发行包使用 Developer ID 签名并经过 Apple 公证，不需要绕过 Gatekeeper。
 
 ## 运行
 

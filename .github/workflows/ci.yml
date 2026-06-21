@@ -12,7 +12,14 @@ jobs:
       - uses: actions/checkout@v5
       - name: Test
         run: swift test
-      - name: Build universal Release binary
+      - name: Smoke-test release packaging
+        env:
+          HEADUP_SIGNING_IDENTITY: '-'
         run: |
-          swift build -c release --arch arm64 --arch x86_64
-          lipo -info .build/apple/Products/Release/HeadUp
+          ./script/package_release.sh
+          lipo -info dist/release/HeadUp.app/Contents/MacOS/HeadUp
+          codesign --verify --deep --strict --verbose=2 dist/release/HeadUp.app
+          for checksum in dist/release/HeadUp-*.sha256; do
+            shasum -a 256 -c "$checksum"
+          done
+          test -f dist/release/HeadUp-$(tr -d '[:space:]' < VERSION).dSYM.zip

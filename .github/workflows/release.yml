@@ -53,7 +53,22 @@ jobs:
           HEADUP_BUILD_NUMBER: ${{ github.run_number }}
         run: ./script/package_release.sh
 
+      - name: Preserve debug symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: HeadUp-${{ github.ref_name }}-dSYM
+          path: |
+            dist/release/*.dSYM.zip
+            dist/release/*.dSYM.zip.sha256
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/release/*.zip dist/release/*.sha256 --generate-notes
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/release/HeadUp-$VERSION.zip" \
+            "dist/release/HeadUp-$VERSION.zip.sha256" \
+            --generate-notes

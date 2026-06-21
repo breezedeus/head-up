@@ -13,6 +13,15 @@ enum HeadphoneActivity: Equatable {
     case unknown
 
     var isMoving: Bool { self == .walking || self == .running }
+
+    var diagnosticDescription: String {
+        switch self {
+        case .stationary: return "stationary"
+        case .walking: return "walking"
+        case .running: return "running"
+        case .unknown: return "unknown"
+        }
+    }
 }
 
 enum CalibrationStage: Equatable {

@@ -223,6 +223,24 @@ final class PostureStore: ObservableObject {
         objectWillChange.send()
     }
 
+    func copyDiagnosticInfo() {
+        let authorization = CMHeadphoneMotionManager.authorizationStatus()
+        let summary = """
+        HeadUp: \(HeadUpAppInfo.versionDescription)
+        macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
+        Motion authorization: \(authorization.rawValue)
+        AirPods connected: \(isConnected)
+        Headphone activity: \(headphoneActivity.diagnosticDescription)
+        Monitoring enabled: \(isMonitoring)
+        Calibrated: \(analyzer.isCalibrated)
+        Installed in Applications: \(HeadUpAppInfo.isInstalledInApplications)
+        """
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(summary, forType: .string)
+        HeadUpLog.lifecycle.notice("Privacy-safe diagnostic summary copied")
+    }
+
     private func handle(_ sample: MotionSample) {
         isConnected = true
 

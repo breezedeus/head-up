@@ -76,7 +76,14 @@ PLIST
 codesign --force --deep --sign - "$APP_BUNDLE"
 
 open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+  local open_args=(-n)
+  if [[ -n "${HEADUP_WELCOME_SNAPSHOT:-}" ]]; then
+    open_args+=(--env "HEADUP_WELCOME_SNAPSHOT=$HEADUP_WELCOME_SNAPSHOT")
+  fi
+  if [[ "${HEADUP_AUTOCOMPLETE_ONBOARDING:-}" == "1" ]]; then
+    open_args+=(--env "HEADUP_AUTOCOMPLETE_ONBOARDING=1")
+  fi
+  /usr/bin/open "${open_args[@]}" "$APP_BUNDLE"
 }
 
 case "$MODE" in

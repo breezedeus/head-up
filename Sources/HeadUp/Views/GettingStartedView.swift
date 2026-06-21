@@ -24,7 +24,7 @@ struct GettingStartedView: View {
             }
 
             VStack(spacing: 14) {
-                step("1", title: "连接 AirPods", detail: "戴上支持头部追踪的 AirPods，并保持与 Mac 连接。")
+                step("1", title: "安装并连接", detail: "先将抬头移入“应用程序”，再戴上支持头部追踪的 AirPods。")
                 step("2", title: "完成两步校准", detail: "先坐直平视，再像平时看键盘一样自然低头。")
                 step("3", title: "让它留在菜单栏", detail: "持续低头达到阈值时，抬头会通过浮层和提示音提醒你。")
             }
@@ -49,6 +49,7 @@ struct GettingStartedView: View {
         }
         .padding(32)
         .frame(width: 540, height: 520)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func step(_ number: String, title: String, detail: String) -> some View {

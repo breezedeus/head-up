@@ -8,3 +8,4 @@
 - Walking/running suppression using headphone activity data on macOS 15+.
 - Menu bar dashboard, settings window, launch-at-login option, and local-only storage.
 - First-launch guide, permission retry, version information, update link, and support entry points.
+- Applications-folder guidance, privacy-safe diagnostic copy, and archived dSYM symbols for release support.

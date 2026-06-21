@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var confirmsDataReset = false
+    @State private var diagnosticsCopied = false
     @ObservedObject var store: PostureStore
     @ObservedObject var settings: AppSettings
 
@@ -23,6 +24,11 @@ struct SettingsView: View {
                 )
                 if let error = store.launchAtLoginError {
                     Text(error).font(.caption).foregroundStyle(.red)
+                }
+                if !HeadUpAppInfo.isInstalledInApplications {
+                    Label("建议先将抬头移到“应用程序”文件夹，登录启动会更稳定", systemImage: "folder.badge.questionmark")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
             }
 
@@ -102,6 +108,10 @@ struct SettingsView: View {
                 Link("隐私说明", destination: HeadUpLinks.privacy)
                 Link("反馈问题", destination: HeadUpLinks.issues)
                 Link("查看更新", destination: HeadUpLinks.releases)
+                Button(diagnosticsCopied ? "诊断信息已复制" : "复制诊断信息") {
+                    store.copyDiagnosticInfo()
+                    diagnosticsCopied = true
+                }
             }
 
             Section {

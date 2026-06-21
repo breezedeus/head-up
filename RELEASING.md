@@ -22,7 +22,7 @@ HEADUP_NOTARY_PROFILE="headup-notary" \
 ./script/package_release.sh
 ```
 
-The script creates a universal `arm64`/`x86_64` Release app, enables Hardened Runtime, submits it for notarization, staples the ticket, verifies Gatekeeper acceptance, and writes the final ZIP under `dist/release/`.
+The script creates a universal `arm64`/`x86_64` Release app, enables Hardened Runtime, submits it for notarization, staples the ticket, verifies Gatekeeper acceptance, and writes the final app ZIP plus a separate dSYM ZIP and SHA-256 checksums under `dist/release/`. Keep the dSYM private if the GitHub release itself is public; it is needed to symbolicate crash reports but users do not need to download it.
 
 ## GitHub release automation
 

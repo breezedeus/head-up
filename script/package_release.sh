@@ -15,6 +15,7 @@ APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.zip"
+DSYM_ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.dSYM.zip"
 
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   echo "HEADUP_SIGNING_IDENTITY is required for a public release." >&2
@@ -83,10 +84,11 @@ else
   echo "HEADUP_NOTARY_PROFILE is unset; the signed build was not notarized." >&2
 fi
 
-if [[ -d "$BUILD_DIR/$APP_NAME.dSYM" ]]; then
-  cp -R "$BUILD_DIR/$APP_NAME.dSYM" "$RELEASE_DIR/$APP_NAME-$VERSION.dSYM"
-fi
-
 shasum -a 256 "$ZIP_PATH" > "$ZIP_PATH.sha256"
+
+if [[ -d "$BUILD_DIR/$APP_NAME.dSYM" ]]; then
+  ditto -c -k --keepParent "$BUILD_DIR/$APP_NAME.dSYM" "$DSYM_ZIP_PATH"
+  shasum -a 256 "$DSYM_ZIP_PATH" > "$DSYM_ZIP_PATH.sha256"
+fi
 
 echo "$ZIP_PATH"

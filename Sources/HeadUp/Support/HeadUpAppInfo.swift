@@ -16,6 +16,11 @@ enum HeadUpLinks {
 }
 
 enum HeadUpAppInfo {
+    static var isInstalledInApplications: Bool {
+        let path = Bundle.main.bundleURL.standardizedFileURL.path
+        return path == "/Applications/HeadUp.app" || path.hasPrefix("/Applications/")
+    }
+
     static var versionDescription: String {
         let dictionary = Bundle.main.infoDictionary
         let version = dictionary?["CFBundleShortVersionString"] as? String ?? "开发版"
