@@ -9,3 +9,4 @@
 - Menu bar dashboard, settings window, launch-at-login option, and local-only storage.
 - First-launch guide, permission retry, version information, update link, and support entry points.
 - Applications-folder guidance, privacy-safe diagnostic copy, and archived dSYM symbols for release support.
+- Fixed a false connected state when Core Motion was listening without an AirPods connection, and cancel calibration immediately on disconnect.

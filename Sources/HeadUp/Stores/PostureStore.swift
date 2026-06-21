@@ -87,18 +87,17 @@ final class PostureStore: ObservableObject {
             self?.handle(sample)
         }
         motionService.onConnectionChanged = { [weak self] connected in
-            self?.isConnected = connected
-            if !connected { self?.resetLiveSession() }
-            self?.refreshStatus()
+            self?.handleConnectionChanged(connected)
         }
         motionService.onError = { [weak self] error in
             if let serviceError = error as? HeadphoneMotionService.ServiceError,
                serviceError == .permissionDenied {
+                self?.isConnected = false
+                self?.cancelCalibrationAfterDisconnect()
+                self?.resetLiveSession()
                 self?.status = .permissionDenied
             } else {
-                self?.isConnected = false
-                self?.resetLiveSession()
-                self?.refreshStatus()
+                self?.handleConnectionChanged(false)
             }
         }
         activityService.onActivityChanged = { [weak self] activity in
@@ -166,6 +165,9 @@ final class PostureStore: ObservableObject {
     }
 
     func retryMotionAccess() {
+        isConnected = false
+        cancelCalibrationAfterDisconnect()
+        resetLiveSession()
         status = .disconnected
         motionService.stop()
         activityService.stop()
@@ -416,6 +418,29 @@ final class PostureStore: ObservableObject {
         } else {
             refreshStatus()
         }
+    }
+
+    private func handleConnectionChanged(_ connected: Bool) {
+        HeadUpLog.motion.notice("Verified headphone connection changed; connected=\(connected, privacy: .public)")
+        isConnected = connected
+        if !connected {
+            cancelCalibrationAfterDisconnect()
+            resetLiveSession()
+        }
+        refreshStatus()
+    }
+
+    private func cancelCalibrationAfterDisconnect() {
+        guard calibrationStage != .idle else { return }
+        calibrationStage = .idle
+        calibrationStartedAt = nil
+        calibrationSamples.removeAll()
+        calibrationProgress = 0
+        uprightPitch = nil
+        if !analyzer.isCalibrated {
+            calibrationError = "AirPods 已断开，请重新连接后再校准"
+        }
+        HeadUpLog.calibration.notice("Calibration cancelled after headphones disconnected")
     }
 
     private func resetLiveSession() {
