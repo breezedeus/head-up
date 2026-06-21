@@ -36,6 +36,10 @@ swift test
 
 遥测只记录启动、AirPods 连接、校准阶段和提醒事件，不记录连续角度数据。
 
+## 发布
+
+公开发行版本使用通用 Release 二进制、Developer ID、Hardened Runtime 和 Apple 公证。完整步骤见 [RELEASING.md](RELEASING.md)，隐私说明见 [PRIVACY.md](PRIVACY.md)。
+
 如果系统通知被关闭，设置页会显示入口，App 会改用置顶 HUD 和系统提示音提醒。设置页的“测试提醒”可以随时验证提醒链路。
 
 设置窗口是按需打开的单例窗口。菜单栏的“设置…”会激活 App、将窗口移动到当前 Space 并置于最前方。

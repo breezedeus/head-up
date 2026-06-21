@@ -170,7 +170,7 @@ struct DashboardView: View {
                     icon: "checkmark.circle.fill",
                     color: .green,
                     title: "良好姿势",
-                    value: "\(store.goodPosturePercentage)%"
+                    value: store.goodPosturePercentage.map { "\($0)%" } ?? "—"
                 )
                 Divider().frame(height: 38)
                 summaryItem(
@@ -247,8 +247,12 @@ struct DashboardView: View {
             return "保持得不错，肩膀也放松一点"
         case .paused:
             return "继续后恢复姿态记录"
+        case .moving:
+            return "行走或跑步时会自动暂停姿态提醒"
         case .disconnected:
             return "戴上并连接支持头部追踪的 AirPods"
+        case .needsCalibration:
+            return store.calibrationError ?? "完成校准后开始监测"
         default:
             return "完成校准后开始监测"
         }
@@ -258,6 +262,7 @@ struct DashboardView: View {
         switch store.status {
         case .warning, .caution: return .orange
         case .good: return .green
+        case .moving: return .blue
         default: return .secondary
         }
     }
@@ -268,6 +273,7 @@ struct DashboardView: View {
         case .caution: return "arrow.down.forward.circle.fill"
         case .good: return "checkmark.circle.fill"
         case .paused: return "pause.circle.fill"
+        case .moving: return "figure.walk.circle.fill"
         default: return "info.circle.fill"
         }
     }

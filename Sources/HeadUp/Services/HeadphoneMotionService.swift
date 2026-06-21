@@ -20,6 +20,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
     private let manager = CMHeadphoneMotionManager()
     private var hasLoggedFirstSample = false
+    private var motionUpdatesEnabled = true
     private let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "com.king.headup.motion"
@@ -51,7 +52,18 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         manager.stopConnectionStatusUpdates()
     }
 
+    func setMotionUpdatesEnabled(_ enabled: Bool) {
+        motionUpdatesEnabled = enabled
+        if enabled {
+            startMotionUpdatesIfAvailable()
+        } else {
+            manager.stopDeviceMotionUpdates()
+            HeadUpLog.motion.notice("Headphone device-motion updates paused")
+        }
+    }
+
     private func startMotionUpdatesIfAvailable() {
+        guard motionUpdatesEnabled else { return }
         guard manager.isDeviceMotionAvailable else {
             HeadUpLog.motion.notice("Headphone motion is currently unavailable")
             DispatchQueue.main.async { [weak self] in

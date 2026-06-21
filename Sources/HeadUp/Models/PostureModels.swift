@@ -6,6 +6,15 @@ struct MotionSample {
     let timestamp: Date
 }
 
+enum HeadphoneActivity: Equatable {
+    case stationary
+    case walking
+    case running
+    case unknown
+
+    var isMoving: Bool { self == .walking || self == .running }
+}
+
 enum CalibrationStage: Equatable {
     case idle
     case upright
@@ -26,6 +35,7 @@ enum PostureStatus: Equatable {
     case permissionDenied
     case needsCalibration
     case paused
+    case moving
     case calibrating(CalibrationStage)
     case good
     case caution
@@ -38,6 +48,7 @@ enum PostureStatus: Equatable {
         case .permissionDenied: return "需要运动与健身权限"
         case .needsCalibration: return "请先校准"
         case .paused: return "监测已暂停"
+        case .moving: return "移动中"
         case .calibrating(let stage): return stage.instruction
         case .good: return "姿势良好"
         case .caution: return "正在低头"

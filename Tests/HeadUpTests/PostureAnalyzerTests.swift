@@ -15,6 +15,14 @@ struct PostureAnalyzerTests {
         #expect(analyzer.downwardDirection == -1)
     }
 
+    @Test func rejectsCalibrationWithoutEnoughHeadMovement() {
+        let analyzer = PostureAnalyzer()
+        let accepted = analyzer.calibrate(uprightPitch: 10, lookDownPitch: 12)
+
+        #expect(!accepted)
+        #expect(!analyzer.isCalibrated)
+    }
+
     @Test func warnsOnlyAfterDelayAndOnlyOncePerEpisode() throws {
         let analyzer = PostureAnalyzer()
         analyzer.calibrate(uprightPitch: 0, lookDownPitch: 20)

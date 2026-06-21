@@ -31,4 +31,14 @@ struct PostureHistoryTests {
         #expect(bins[3] == .warning)
         #expect(bins[5] == .empty)
     }
+
+    @Test func removesAllEntries() {
+        let history = PostureHistory(entries: [
+            PostureHistoryEntry(timestamp: Date(), isGood: true)
+        ])
+
+        history.removeAll()
+
+        #expect(history.entries.isEmpty)
+    }
 }

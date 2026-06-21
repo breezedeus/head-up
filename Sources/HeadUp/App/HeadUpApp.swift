@@ -25,7 +25,7 @@ struct HeadUpApp: App {
         Window("抬头设置", id: HeadUpWindowID.settings) {
             SettingsView(store: store)
         }
-        .defaultSize(width: 460, height: 310)
+        .defaultSize(width: 460, height: 390)
         .windowResizability(.contentSize)
     }
 }

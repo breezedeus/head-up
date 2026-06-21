@@ -55,6 +55,10 @@ final class PostureHistory {
         }
     }
 
+    func removeAll() {
+        entries.removeAll()
+    }
+
     private func prune(at date: Date) {
         let cutoff = date.addingTimeInterval(-retention)
         entries.removeAll { $0.timestamp < cutoff }
