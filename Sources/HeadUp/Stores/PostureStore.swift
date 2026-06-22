@@ -6,6 +6,7 @@ import Foundation
 final class PostureStore: ObservableObject {
     @Published private(set) var status: PostureStatus = .disconnected
     @Published private(set) var isConnected = false
+    @Published private(set) var isTrackingAvailable = false
     @Published private(set) var angle = 0.0
     @Published private(set) var sustainedDuration: TimeInterval = 0
     @Published private(set) var calibrationStage: CalibrationStage = .idle
@@ -21,7 +22,7 @@ final class PostureStore: ObservableObject {
         didSet {
             if isMonitoring {
                 analyzer.reset()
-                motionService.setMotionUpdatesEnabled(true)
+                motionService.restart()
                 activityService.start()
                 refreshStatus()
             } else {
@@ -89,6 +90,9 @@ final class PostureStore: ObservableObject {
         motionService.onConnectionChanged = { [weak self] connected in
             self?.handleConnectionChanged(connected)
         }
+        motionService.onTrackingAvailabilityChanged = { [weak self] available in
+            self?.handleTrackingAvailabilityChanged(available)
+        }
         motionService.onError = { [weak self] error in
             if let serviceError = error as? HeadphoneMotionService.ServiceError,
                serviceError == .permissionDenied {
@@ -133,7 +137,8 @@ final class PostureStore: ObservableObject {
     }
 
     var connectionText: String {
-        isConnected ? "AirPods 头部追踪已连接" : "未检测到兼容的 AirPods"
+        guard isConnected else { return "未检测到兼容的 AirPods" }
+        return isTrackingAvailable ? "AirPods 头部追踪已连接" : "AirPods 已连接，头部追踪暂不可用"
     }
 
     func startCalibration() {
@@ -222,6 +227,7 @@ final class PostureStore: ObservableObject {
         macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
         Motion authorization: \(authorization.rawValue)
         AirPods connected: \(isConnected)
+        Head tracking available: \(isTrackingAvailable)
         Headphone activity: \(headphoneActivity.diagnosticDescription)
         Monitoring enabled: \(isMonitoring)
         Calibrated: \(analyzer.isCalibrated)
@@ -334,6 +340,10 @@ final class PostureStore: ObservableObject {
             status = .disconnected
             return
         }
+        guard isTrackingAvailable else {
+            status = .unavailable
+            return
+        }
         guard !headphoneActivity.isMoving else {
             status = .moving
             return
@@ -414,7 +424,17 @@ final class PostureStore: ObservableObject {
         HeadUpLog.motion.notice("Verified headphone connection changed; connected=\(connected, privacy: .public)")
         isConnected = connected
         if !connected {
+            isTrackingAvailable = false
             cancelCalibrationAfterDisconnect()
+            resetLiveSession()
+        }
+        refreshStatus()
+    }
+
+    private func handleTrackingAvailabilityChanged(_ available: Bool) {
+        HeadUpLog.motion.notice("Headphone tracking availability changed; available=\(available, privacy: .public)")
+        isTrackingAvailable = available
+        if !available {
             resetLiveSession()
         }
         refreshStatus()
