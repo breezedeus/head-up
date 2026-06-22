@@ -16,12 +16,14 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
     var onSample: ((MotionSample) -> Void)?
     var onConnectionChanged: ((Bool) -> Void)?
+    var onTrackingAvailabilityChanged: ((Bool) -> Void)?
     var onError: ((Error) -> Void)?
 
     private let manager = CMHeadphoneMotionManager()
     private var hasLoggedFirstSample = false
     private var motionUpdatesEnabled = true
     private var reportedConnected = false
+    private var reportedTrackingAvailable = false
     private var connectionWatchdog: DispatchWorkItem?
     private let connectionTimeout: TimeInterval = 5
     private let queue: OperationQueue = {
@@ -49,6 +51,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         manager.startConnectionStatusUpdates()
         DispatchQueue.main.async { [weak self] in
             self?.updateVerifiedConnection(false, force: true)
+            self?.updateTrackingAvailability(false, force: true)
         }
         startMotionUpdatesIfAvailable()
     }
@@ -59,6 +62,12 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         manager.stopDeviceMotionUpdates()
         manager.stopConnectionStatusUpdates()
         hasLoggedFirstSample = false
+    }
+
+    func restart() {
+        HeadUpLog.motion.notice("Restarting headphone motion session")
+        stop()
+        start()
     }
 
     func setMotionUpdatesEnabled(_ enabled: Bool) {
@@ -78,7 +87,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         guard manager.isDeviceMotionAvailable else {
             HeadUpLog.motion.notice("Headphone motion is currently unavailable")
             DispatchQueue.main.async { [weak self] in
-                self?.onConnectionChanged?(false)
+                self?.updateTrackingAvailability(false)
             }
             return
         }
@@ -111,6 +120,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
                       self.motionUpdatesEnabled,
                       self.manager.isDeviceMotionActive else { return }
                 self.updateVerifiedConnection(true)
+                self.updateTrackingAvailability(true)
                 self.armConnectionWatchdog()
                 self.onSample?(sample)
             }
@@ -123,6 +133,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.updateVerifiedConnection(true)
+            self.updateTrackingAvailability(false)
             if self.motionUpdatesEnabled {
                 self.armConnectionWatchdog()
             }
@@ -136,6 +147,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.connectionWatchdog?.cancel()
             self?.connectionWatchdog = nil
+            self?.updateTrackingAvailability(false)
             self?.updateVerifiedConnection(false)
         }
     }
@@ -146,12 +158,18 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         onConnectionChanged?(connected)
     }
 
+    private func updateTrackingAvailability(_ available: Bool, force: Bool = false) {
+        guard force || reportedTrackingAvailable != available else { return }
+        reportedTrackingAvailable = available
+        onTrackingAvailabilityChanged?(available)
+    }
+
     private func armConnectionWatchdog() {
         connectionWatchdog?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.motionUpdatesEnabled, self.reportedConnected else { return }
-            HeadUpLog.motion.notice("No headphone motion samples within liveness window; marking disconnected")
-            self.updateVerifiedConnection(false)
+            HeadUpLog.motion.notice("No headphone motion samples within liveness window; marking tracking unavailable")
+            self.updateTrackingAvailability(false)
         }
         connectionWatchdog = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + connectionTimeout, execute: workItem)

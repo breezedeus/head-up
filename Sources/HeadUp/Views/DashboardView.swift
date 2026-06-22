@@ -268,6 +268,8 @@ struct DashboardView: View {
             return "行走或跑步时会自动暂停姿态提醒"
         case .disconnected:
             return "戴上并连接支持头部追踪的 AirPods"
+        case .unavailable:
+            return "AirPods 仍已连接；正在等待头部运动数据恢复"
         case .needsCalibration:
             return store.calibrationError ?? "完成校准后开始监测"
         default:
