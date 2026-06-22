@@ -32,10 +32,13 @@ swift build -c release --arch arm64 --arch x86_64
 BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
-rm -rf "$RELEASE_DIR"
+mkdir -p "$RELEASE_DIR"
+rm -rf "$APP_BUNDLE"
+rm -f "$ZIP_PATH" "$ZIP_PATH.sha256" "$DSYM_ZIP_PATH" "$DSYM_ZIP_PATH.sha256"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_MACOS/$APP_NAME"
 chmod +x "$APP_MACOS/$APP_NAME"
+cp -R "$ROOT_DIR/Sources/HeadUp/Resources/MenuBarIcons" "$APP_RESOURCES/MenuBarIcons"
 
 cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_RESOURCES/HeadUp.icns"
 
@@ -70,7 +73,6 @@ else
 fi
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
-rm -f "$ZIP_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 
 if [[ -n "$NOTARY_PROFILE" ]]; then

@@ -27,6 +27,7 @@ mkdir -p "$APP_MACOS"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 mkdir -p "$APP_CONTENTS/Resources"
+cp -R "$ROOT_DIR/Sources/HeadUp/Resources/MenuBarIcons" "$APP_CONTENTS/Resources/MenuBarIcons"
 if [[ -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
   cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_CONTENTS/Resources/HeadUp.icns"
 fi

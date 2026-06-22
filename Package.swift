@@ -10,7 +10,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "HeadUp",
-            path: "Sources/HeadUp"
+            path: "Sources/HeadUp",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "HeadUpTests",

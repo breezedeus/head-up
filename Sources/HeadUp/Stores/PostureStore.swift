@@ -136,16 +136,6 @@ final class PostureStore: ObservableObject {
         isConnected ? "AirPods 头部追踪已连接" : "未检测到兼容的 AirPods"
     }
 
-    var menuBarIcon: String {
-        switch status {
-        case .warning, .caution: return "person.fill.turn.down"
-        case .good: return "person.fill.checkmark"
-        case .calibrating: return "scope"
-        case .moving: return "figure.walk"
-        default: return "person.crop.circle.badge.questionmark"
-        }
-    }
-
     func startCalibration() {
         guard isConnected else { return }
         calibrationError = nil

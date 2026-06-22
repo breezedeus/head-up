@@ -66,6 +66,27 @@ enum PostureStatus: Equatable {
     }
 }
 
+extension PostureStatus {
+    var menuBarIconName: String {
+        switch self {
+        case .unavailable, .disconnected, .permissionDenied:
+            return "menu-disconnected"
+        case .needsCalibration, .calibrating:
+            return "menu-calibrating"
+        case .paused:
+            return "menu-paused"
+        case .moving:
+            return "menu-moving"
+        case .good:
+            return "menu-good"
+        case .caution:
+            return "menu-caution"
+        case .warning:
+            return "menu-warning"
+        }
+    }
+}
+
 struct PostureReading {
     let angle: Double
     let sustainedDuration: TimeInterval

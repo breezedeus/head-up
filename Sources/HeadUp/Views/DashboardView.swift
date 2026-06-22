@@ -84,7 +84,11 @@ struct DashboardView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Label(statusHeadline, systemImage: statusSymbol)
+                    HStack(spacing: 7) {
+                        Image(nsImage: HeadUpIconResource.image(named: store.status.menuBarIconName, pointHeight: 19))
+                            .renderingMode(.template)
+                        Text(statusHeadline)
+                    }
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(statusColor)
                     Text(statusDetail)
@@ -206,8 +210,11 @@ struct DashboardView: View {
 
     private var calibrationView: some View {
         VStack(spacing: 16) {
-            Image(systemName: store.calibrationStage == .upright ? "person.fill.checkmark" : "person.fill.turn.down")
-                .font(.system(size: 38))
+            Image(nsImage: HeadUpIconResource.image(
+                named: store.calibrationStage == .upright ? "menu-good" : "menu-caution",
+                pointHeight: 38
+            ))
+                .renderingMode(.template)
                 .foregroundStyle(.blue)
                 .symbolEffect(.pulse)
             VStack(spacing: 5) {
@@ -277,14 +284,4 @@ struct DashboardView: View {
         }
     }
 
-    private var statusSymbol: String {
-        switch store.status {
-        case .warning: return "exclamationmark.triangle.fill"
-        case .caution: return "arrow.down.forward.circle.fill"
-        case .good: return "checkmark.circle.fill"
-        case .paused: return "pause.circle.fill"
-        case .moving: return "figure.walk.circle.fill"
-        default: return "info.circle.fill"
-        }
-    }
 }

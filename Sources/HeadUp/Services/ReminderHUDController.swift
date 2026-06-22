@@ -54,8 +54,8 @@ private struct ReminderHUDView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "person.fill.turn.down")
-                .font(.system(size: 30, weight: .semibold))
+            Image(nsImage: HeadUpIconResource.image(named: "menu-warning", pointHeight: 30))
+                .renderingMode(.template)
                 .foregroundStyle(.orange)
                 .frame(width: 52, height: 52)
                 .background(.orange.opacity(0.14), in: Circle())
