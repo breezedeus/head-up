@@ -16,11 +16,58 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.zip"
 DSYM_ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.dSYM.zip"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
+
+require_xcbuild_for_universal_build() {
+  local developer_dir
+  developer_dir="$(xcode-select -p 2>/dev/null || true)"
+
+  local xcbuild_path=""
+
+  if [[ "$developer_dir" == */Contents/Developer ]]; then
+    local xcode_app_dir="${developer_dir%/Contents/Developer}"
+    xcbuild_path="$xcode_app_dir/Contents/SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild"
+  elif [[ -n "$developer_dir" ]]; then
+    xcbuild_path="${developer_dir%/CommandLineTools}/SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild"
+  fi
+
+  # Some Xcode installations do not expose the internal xcbuild binary at the
+  # expected framework path. In that case, xcodebuild is the public supported
+  # frontend and is enough for SwiftPM universal release builds.
+  if [[ -n "$xcbuild_path" && -x "$xcbuild_path" ]]; then
+    return 0
+  fi
+
+  if xcrun --find xcodebuild >/dev/null 2>&1; then
+    return 0
+  fi
+
+  cat >&2 <<EOF
+
+The universal SwiftPM release build requires Xcode's build tools, but neither
+the internal xcbuild tool nor the public xcodebuild tool was found.
+
+Selected developer directory:
+  ${developer_dir:-<none>}
+
+Install the full Xcode app, then select it with:
+  sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+  sudo xcodebuild -license accept
+
+Then rerun:
+  cd "$ROOT_DIR"
+  HEADUP_SIGNING_IDENTITY="${HEADUP_SIGNING_IDENTITY:--}" ./script/package_release.sh
+
+EOF
+  exit 2
+}
 
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   echo "HEADUP_SIGNING_IDENTITY is required for a public release." >&2
   exit 2
 fi
+
+require_xcbuild_for_universal_build
 
 if [[ ! -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
   echo "Resources/HeadUp.icns is required for a public release." >&2
@@ -39,6 +86,12 @@ mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_MACOS/$APP_NAME"
 chmod +x "$APP_MACOS/$APP_NAME"
 cp -R "$ROOT_DIR/Sources/HeadUp/Resources/MenuBarIcons" "$APP_RESOURCES/MenuBarIcons"
+if [[ -d "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" ]]; then
+  cp -R "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" "$APP_RESOURCES/$RESOURCE_BUNDLE_NAME"
+else
+  echo "SwiftPM resource bundle is missing: $BUILD_DIR/$RESOURCE_BUNDLE_NAME" >&2
+  exit 2
+fi
 
 cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_RESOURCES/HeadUp.icns"
 

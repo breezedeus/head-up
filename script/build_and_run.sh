@@ -15,12 +15,14 @@ APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 BUILD_NUMBER="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 cd "$ROOT_DIR"
 swift build
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
+BUILD_DIR="$(swift build --show-bin-path)"
+BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
@@ -28,6 +30,12 @@ cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 mkdir -p "$APP_CONTENTS/Resources"
 cp -R "$ROOT_DIR/Sources/HeadUp/Resources/MenuBarIcons" "$APP_CONTENTS/Resources/MenuBarIcons"
+if [[ -d "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" ]]; then
+  cp -R "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" "$APP_CONTENTS/Resources/$RESOURCE_BUNDLE_NAME"
+else
+  echo "SwiftPM resource bundle is missing: $BUILD_DIR/$RESOURCE_BUNDLE_NAME" >&2
+  exit 2
+fi
 if [[ -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
   cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_CONTENTS/Resources/HeadUp.icns"
 fi

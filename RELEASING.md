@@ -4,8 +4,15 @@ HeadUp supports direct distribution with a Developer ID Application certificate 
 
 ## Prerequisites
 
-1. Install a valid **Developer ID Application** certificate in the login keychain.
-2. Store notary credentials once:
+1. Install the full Xcode app and select it:
+
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -license accept
+   ```
+
+2. Install a valid **Developer ID Application** certificate in the login keychain.
+3. Store notary credentials once:
 
    ```bash
    xcrun notarytool store-credentials headup-notary \
