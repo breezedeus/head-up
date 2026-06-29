@@ -1,5 +1,11 @@
 # HeadUp Releases
 
+## HeadUp 0.2.5 [2026-06-29]
+
+### Fixes
+
+- Added an independent local sound reminder toggle so posture reminders are audible even when system notification sounds are muted or disabled.
+
 ## HeadUp 0.2.4 [2026-06-29]
 
 ### Fixes

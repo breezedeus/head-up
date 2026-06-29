@@ -3,6 +3,8 @@ import Foundation
 import UserNotifications
 
 final class NotificationService {
+    private var reminderSound: NSSound?
+
     func resolveAuthorization(completion: @escaping (Bool) -> Void) {
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
@@ -35,7 +37,6 @@ final class NotificationService {
         let content = UNMutableNotificationContent()
         content.title = "抬头"
         content.body = "你已经低头一会儿了。下巴轻轻抬一点，肩膀放松。"
-        content.sound = .default
         content.userInfo = ["angle": angle]
 
         let request = UNNotificationRequest(
@@ -52,8 +53,24 @@ final class NotificationService {
         }
     }
 
-    func playFallbackSound() {
-        NSSound.beep()
-        HeadUpLog.reminders.notice("Played fallback posture alert sound")
+    func playReminderSound() {
+        let sound = reminderSound ?? NSSound(named: NSSound.Name("Ping"))
+        guard let sound else {
+            NSSound.beep()
+            HeadUpLog.reminders.notice("Played fallback posture alert sound")
+            return
+        }
+
+        reminderSound = sound
+        sound.volume = 1
+        if sound.isPlaying {
+            sound.stop()
+        }
+        if sound.play() {
+            HeadUpLog.reminders.notice("Played posture reminder sound")
+        } else {
+            NSSound.beep()
+            HeadUpLog.reminders.notice("Played fallback posture alert sound")
+        }
     }
 }
