@@ -7,6 +7,7 @@ final class AppSettings: ObservableObject {
         static let reminderDelay = "posture.reminderDelay"
         static let cooldown = "posture.cooldown"
         static let notifications = "posture.notifications"
+        static let audibleReminders = "posture.audibleReminders"
     }
 
     private let defaults: UserDefaults
@@ -27,11 +28,16 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(notificationsEnabled, forKey: Key.notifications) }
     }
 
+    @Published var audibleRemindersEnabled: Bool {
+        didSet { defaults.set(audibleRemindersEnabled, forKey: Key.audibleReminders) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         threshold = defaults.object(forKey: Key.threshold) as? Double ?? 15
         reminderDelay = defaults.object(forKey: Key.reminderDelay) as? Double ?? 20
         cooldown = defaults.object(forKey: Key.cooldown) as? Double ?? 180
         notificationsEnabled = defaults.object(forKey: Key.notifications) as? Bool ?? false
+        audibleRemindersEnabled = defaults.object(forKey: Key.audibleReminders) as? Bool ?? true
     }
 }
