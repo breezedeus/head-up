@@ -50,8 +50,15 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         HeadUpLog.motion.notice("Starting headphone connection monitoring")
         manager.startConnectionStatusUpdates()
         DispatchQueue.main.async { [weak self] in
-            self?.updateVerifiedConnection(false, force: true)
-            self?.updateTrackingAvailability(false, force: true)
+            guard let self else { return }
+            let hasCompatibleHeadphones = Self.hasInitialConnectionEvidence(
+                isDeviceMotionAvailable: self.manager.isDeviceMotionAvailable
+            )
+            self.updateVerifiedConnection(hasCompatibleHeadphones, force: true)
+            self.updateTrackingAvailability(false, force: true)
+            if hasCompatibleHeadphones, self.motionUpdatesEnabled {
+                self.armConnectionWatchdog()
+            }
         }
         startMotionUpdatesIfAvailable()
     }
@@ -156,6 +163,10 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         guard force || reportedConnected != connected else { return }
         reportedConnected = connected
         onConnectionChanged?(connected)
+    }
+
+    static func hasInitialConnectionEvidence(isDeviceMotionAvailable: Bool) -> Bool {
+        isDeviceMotionAvailable
     }
 
     private func updateTrackingAvailability(_ available: Bool, force: Bool = false) {
