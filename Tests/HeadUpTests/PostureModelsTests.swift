@@ -18,4 +18,9 @@ struct PostureModelsTests {
         #expect(HeadphoneActivity.running.diagnosticDescription == "running")
         #expect(HeadphoneActivity.unknown.diagnosticDescription == "unknown")
     }
+
+    @Test func availableHeadphoneMotionCountsAsInitialConnectionEvidence() {
+        #expect(HeadphoneMotionService.hasInitialConnectionEvidence(isDeviceMotionAvailable: true))
+        #expect(!HeadphoneMotionService.hasInitialConnectionEvidence(isDeviceMotionAvailable: false))
+    }
 }
