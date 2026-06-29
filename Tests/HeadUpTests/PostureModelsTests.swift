@@ -20,7 +20,25 @@ struct PostureModelsTests {
     }
 
     @Test func availableHeadphoneMotionCountsAsInitialConnectionEvidence() {
-        #expect(HeadphoneMotionService.hasInitialConnectionEvidence(isDeviceMotionAvailable: true))
-        #expect(!HeadphoneMotionService.hasInitialConnectionEvidence(isDeviceMotionAvailable: false))
+        #expect(HeadphoneMotionService.hasInitialConnectionEvidence(
+            isDeviceMotionAvailable: true,
+            hasAudioConnectionEvidence: false
+        ))
+        #expect(HeadphoneMotionService.hasInitialConnectionEvidence(
+            isDeviceMotionAvailable: false,
+            hasAudioConnectionEvidence: true
+        ))
+        #expect(!HeadphoneMotionService.hasInitialConnectionEvidence(
+            isDeviceMotionAvailable: false,
+            hasAudioConnectionEvidence: false
+        ))
+    }
+
+    @Test func compatibleHeadphoneNamesMatchAirPodsAndHeadTrackingBeats() {
+        #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("King's AirPods Pro"))
+        #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("AirPods Max"))
+        #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("Beats Fit Pro"))
+        #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("Powerbeats Pro"))
+        #expect(!HeadphoneAudioConnectionService.isCompatibleHeadphoneName("MacBook Pro Speakers"))
     }
 }

@@ -1,5 +1,11 @@
 # HeadUp Releases
 
+## HeadUp 0.2.4 [2026-06-29]
+
+### Fixes
+
+- Added CoreAudio AirPods connection detection as a fallback when Core Motion does not report the initial headphone connection.
+
 ## HeadUp 0.2.3 [2026-06-29]
 
 ### Fixes

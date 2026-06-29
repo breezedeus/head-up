@@ -20,11 +20,14 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
     var onError: ((Error) -> Void)?
 
     private let manager = CMHeadphoneMotionManager()
+    private let audioConnectionService = HeadphoneAudioConnectionService()
     private var hasLoggedFirstSample = false
     private var motionUpdatesEnabled = true
     private var reportedConnected = false
     private var reportedTrackingAvailable = false
+    private var connectionEvidence: ConnectionEvidence = .none
     private var connectionWatchdog: DispatchWorkItem?
+    private var audioConnectionPoller: Timer?
     private let connectionTimeout: TimeInterval = 5
     private let queue: OperationQueue = {
         let queue = OperationQueue()
@@ -52,18 +55,26 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let hasCompatibleHeadphones = Self.hasInitialConnectionEvidence(
-                isDeviceMotionAvailable: self.manager.isDeviceMotionAvailable
+                isDeviceMotionAvailable: self.manager.isDeviceMotionAvailable,
+                hasAudioConnectionEvidence: self.audioConnectionService.hasConnectedCompatibleHeadphones()
             )
-            self.updateVerifiedConnection(hasCompatibleHeadphones, force: true)
+            self.updateVerifiedConnection(
+                hasCompatibleHeadphones,
+                evidence: hasCompatibleHeadphones ? .audioRoute : .none,
+                force: true
+            )
             self.updateTrackingAvailability(false, force: true)
             if hasCompatibleHeadphones, self.motionUpdatesEnabled {
                 self.armConnectionWatchdog()
             }
+            self.startAudioConnectionPolling()
         }
         startMotionUpdatesIfAvailable()
     }
 
     func stop() {
+        audioConnectionPoller?.invalidate()
+        audioConnectionPoller = nil
         connectionWatchdog?.cancel()
         connectionWatchdog = nil
         manager.stopDeviceMotionUpdates()
@@ -126,7 +137,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
                 guard let self,
                       self.motionUpdatesEnabled,
                       self.manager.isDeviceMotionActive else { return }
-                self.updateVerifiedConnection(true)
+                self.updateVerifiedConnection(true, evidence: .motionSample)
                 self.updateTrackingAvailability(true)
                 self.armConnectionWatchdog()
                 self.onSample?(sample)
@@ -139,7 +150,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         startMotionUpdatesIfAvailable()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.updateVerifiedConnection(true)
+            self.updateVerifiedConnection(true, evidence: .coreMotionEvent)
             self.updateTrackingAvailability(false)
             if self.motionUpdatesEnabled {
                 self.armConnectionWatchdog()
@@ -155,18 +166,26 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
             self?.connectionWatchdog?.cancel()
             self?.connectionWatchdog = nil
             self?.updateTrackingAvailability(false)
-            self?.updateVerifiedConnection(false)
+            self?.updateVerifiedConnection(false, evidence: .none)
         }
     }
 
-    private func updateVerifiedConnection(_ connected: Bool, force: Bool = false) {
+    private func updateVerifiedConnection(
+        _ connected: Bool,
+        evidence: ConnectionEvidence,
+        force: Bool = false
+    ) {
+        connectionEvidence = connected ? connectionEvidence.merged(with: evidence) : .none
         guard force || reportedConnected != connected else { return }
         reportedConnected = connected
         onConnectionChanged?(connected)
     }
 
-    static func hasInitialConnectionEvidence(isDeviceMotionAvailable: Bool) -> Bool {
-        isDeviceMotionAvailable
+    static func hasInitialConnectionEvidence(
+        isDeviceMotionAvailable: Bool,
+        hasAudioConnectionEvidence: Bool
+    ) -> Bool {
+        isDeviceMotionAvailable || hasAudioConnectionEvidence
     }
 
     private func updateTrackingAvailability(_ available: Bool, force: Bool = false) {
@@ -184,5 +203,47 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         }
         connectionWatchdog = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + connectionTimeout, execute: workItem)
+    }
+
+    private func startAudioConnectionPolling() {
+        audioConnectionPoller?.invalidate()
+        evaluateAudioConnectionEvidence()
+        audioConnectionPoller = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            self?.evaluateAudioConnectionEvidence()
+        }
+    }
+
+    private func evaluateAudioConnectionEvidence() {
+        let hasAudioEvidence = audioConnectionService.hasConnectedCompatibleHeadphones()
+        if hasAudioEvidence {
+            updateVerifiedConnection(true, evidence: .audioRoute)
+            if motionUpdatesEnabled {
+                startMotionUpdatesIfAvailable()
+                armConnectionWatchdog()
+            }
+        } else if connectionEvidence == .audioRoute {
+            updateTrackingAvailability(false)
+            updateVerifiedConnection(false, evidence: .none)
+        }
+    }
+
+    private enum ConnectionEvidence {
+        case none
+        case audioRoute
+        case coreMotionEvent
+        case motionSample
+
+        private var priority: Int {
+            switch self {
+            case .none: return 0
+            case .audioRoute: return 1
+            case .coreMotionEvent: return 2
+            case .motionSample: return 3
+            }
+        }
+
+        func merged(with other: ConnectionEvidence) -> ConnectionEvidence {
+            other.priority > priority ? other : self
+        }
     }
 }
