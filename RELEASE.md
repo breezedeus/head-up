@@ -5,6 +5,11 @@
 ### Fixes
 
 - Added CoreAudio AirPods connection detection as a fallback when Core Motion does not report the initial headphone connection.
+- Made AirPods reconnection polling independent of menu run loop mode after taking headphones off and putting them back on.
+- Changed the connected-but-waiting-for-head-tracking state so it no longer uses the disconnected status icon.
+- Fixed a motion-session recovery bug where audio connection polling could keep resetting the liveness watchdog, leaving HeadUp stuck waiting for head-tracking samples after restart or reconnect.
+- Prevented duplicate headphone motion start attempts and rebuild the Core Motion manager after repeated liveness timeouts.
+- Switched headphone motion reads to polling `deviceMotion` after starting updates, covering cases where the handler never delivers samples.
 
 ## HeadUp 0.2.3 [2026-06-29]
 
