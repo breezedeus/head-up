@@ -40,6 +40,17 @@ struct PostureModelsTests {
         ))
     }
 
+    @Test func monitoringRestartReenablesMotionUpdatesAfterPause() {
+        var gate = MotionUpdateGate()
+        gate.setEnabled(false)
+
+        #expect(!gate.isEnabled)
+
+        gate.prepareForMonitoringRestart()
+
+        #expect(gate.isEnabled)
+    }
+
     @Test func compatibleHeadphoneNamesMatchAirPodsAndHeadTrackingBeats() {
         #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("King's AirPods Pro"))
         #expect(HeadphoneAudioConnectionService.isCompatibleHeadphoneName("AirPods Max"))

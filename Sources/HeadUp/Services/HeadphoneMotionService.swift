@@ -23,7 +23,8 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
     private let audioConnectionService = HeadphoneAudioConnectionService()
     private var hasLoggedFirstSample = false
     private var motionStartInFlight = false
-    private var motionUpdatesEnabled = true
+    private var motionUpdateGate = MotionUpdateGate()
+    var motionUpdatesEnabled: Bool { motionUpdateGate.isEnabled }
     private var reportedConnected = false
     private var reportedTrackingAvailable = false
     private var connectionEvidence: ConnectionEvidence = .none
@@ -89,12 +90,13 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
     func restart() {
         HeadUpLog.motion.notice("Restarting headphone motion session")
+        motionUpdateGate.prepareForMonitoringRestart()
         stop()
         start()
     }
 
     func setMotionUpdatesEnabled(_ enabled: Bool) {
-        motionUpdatesEnabled = enabled
+        motionUpdateGate.setEnabled(enabled)
         if enabled {
             startMotionUpdatesIfAvailable()
         } else {
@@ -343,5 +345,17 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         func merged(with other: ConnectionEvidence) -> ConnectionEvidence {
             other.priority > priority ? other : self
         }
+    }
+}
+
+struct MotionUpdateGate {
+    private(set) var isEnabled = true
+
+    mutating func setEnabled(_ enabled: Bool) {
+        isEnabled = enabled
+    }
+
+    mutating func prepareForMonitoringRestart() {
+        isEnabled = true
     }
 }
