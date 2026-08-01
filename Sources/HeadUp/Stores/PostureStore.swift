@@ -356,7 +356,10 @@ final class PostureStore: ObservableObject {
             notificationService.sendPostureReminder(angle: angle)
         } else {
             reminderHUDController.show(angle: angle)
-            notificationService.playFallbackSound()
+        }
+
+        if settings.audibleRemindersEnabled {
+            notificationService.playReminderSound()
         }
     }
 

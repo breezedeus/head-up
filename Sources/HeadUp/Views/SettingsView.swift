@@ -67,6 +67,8 @@ struct SettingsView: View {
             }
 
             Section("通知") {
+                Toggle("声音提醒", isOn: $settings.audibleRemindersEnabled)
+
                 Toggle(
                     "同时发送系统通知",
                     isOn: Binding(

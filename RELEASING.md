@@ -43,4 +43,4 @@ The release workflow runs for tags matching `v*`. Configure these repository sec
 - `APPLE_APP_SPECIFIC_PASSWORD`
 - `KEYCHAIN_PASSWORD`
 
-Update `VERSION`, update `CHANGELOG.md`, merge to `main`, and push a matching tag such as `v0.1.0`.
+Update `VERSION`, update `RELEASE.md`, merge to `main`, and push a matching tag such as `v0.1.0`.

@@ -52,7 +52,7 @@ enum PostureStatus: Equatable {
 
     var title: String {
         switch self {
-        case .unavailable: return "头部追踪暂不可用"
+        case .unavailable: return "等待头部追踪"
         case .disconnected: return "等待 AirPods"
         case .permissionDenied: return "需要运动与健身权限"
         case .needsCalibration: return "请先校准"
@@ -69,8 +69,10 @@ enum PostureStatus: Equatable {
 extension PostureStatus {
     var menuBarIconName: String {
         switch self {
-        case .unavailable, .disconnected, .permissionDenied:
+        case .disconnected, .permissionDenied:
             return "menu-disconnected"
+        case .unavailable:
+            return "menu-calibrating"
         case .needsCalibration, .calibrating:
             return "menu-calibrating"
         case .paused:
