@@ -1,5 +1,11 @@
 # HeadUp Releases
 
+## HeadUp 0.2.6 [2026-07-08]
+
+### Fixes
+
+- Fixed monitoring resume after pause so HeadUp restarts AirPods head-motion sampling instead of staying stuck in the waiting-for-head-tracking state.
+
 ## HeadUp 0.2.5 [2026-06-29]
 
 ### Fixes
