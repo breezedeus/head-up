@@ -19,6 +19,7 @@ final class ScreenPrivacyStore: ObservableObject {
     @Published private(set) var captureCountdown = 0
     @Published private(set) var completedDisplayIDs: Set<String> = []
     @Published private(set) var needsSessionCalibration = false
+    @Published private(set) var driftStatusByID: [String: ScreenPrivacyDriftStatus] = [:]
     private var driftEstimator = ScreenPrivacyDriftEstimator()
     private var captureTask: Task<Void, Never>?
     private var displayObserver: NSObjectProtocol?
@@ -64,6 +65,9 @@ final class ScreenPrivacyStore: ObservableObject {
     private var weatherTask: Task<Void, Never>?
     private var lastWeatherCity: String?
     private var lastWeatherRefresh: Date?
+    #if HEADUP_DEBUG
+    private var lastDriftPipelineTrace: TimeInterval?
+    #endif
 
     init(settings: ScreenPrivacySettings, displaysProvider: @escaping @MainActor () -> [CalibrationDisplay] = { ScreenPrivacyStore.connectedDisplays() }) {
         self.displaysProvider = displaysProvider
@@ -96,11 +100,36 @@ final class ScreenPrivacyStore: ObservableObject {
         captureTask?.cancel()
     }
 
+    private func resetDriftLearning(reason: String) {
+        driftEstimator.reset(reason: reason)
+        driftStatusByID = [:]
+    }
+
+    #if HEADUP_DEBUG
+    private func traceDriftPipeline(_ sample: MotionSample, note: String) {
+        guard sample.sensorTimestamp - (lastDriftPipelineTrace ?? -.infinity) >= 1 else { return }
+        lastDriftPipelineTrace = sample.sensorTimestamp
+        HeadUpTrace.driftVerbose("privacy pipeline raw yaw \(HeadUpTrace.deg(sample.yaw)) pitch \(HeadUpTrace.deg(sample.pitch)) — \(note)")
+    }
+
+    private func traceDriftPipeline(_ sample: MotionSample, activeDisplays: [ScreenPrivacyDisplayProfile], phase: ScreenPrivacyPhase) {
+        guard sample.sensorTimestamp - (lastDriftPipelineTrace ?? -.infinity) >= 1 else { return }
+        lastDriftPipelineTrace = sample.sensorTimestamp
+        let detail = activeDisplays.map { display -> String in
+            let corrected = driftEstimator.corrected(display)
+            let offset = corrected.offsets(yaw: sample.yaw, pitch: sample.pitch)
+            let inside = corrected.contains(yaw: sample.yaw, pitch: sample.pitch)
+            return "\(display.name)[center y\(HeadUpTrace.deg(corrected.centerYaw)) p\(HeadUpTrace.deg(corrected.centerPitch)), offset h\(HeadUpTrace.deg(offset.horizontal)) v\(HeadUpTrace.deg(offset.vertical)), inside:\(inside)]"
+        }.joined(separator: " ")
+        HeadUpTrace.driftVerbose("privacy pipeline raw yaw \(HeadUpTrace.deg(sample.yaw)) pitch \(HeadUpTrace.deg(sample.pitch)), phase \(String(describing: phase)), displays \(activeDisplays.count): \(detail)")
+    }
+    #endif
+
     private func displayLayoutChanged() {
         guard !displayProfiles.isEmpty || calibrationStage != .idle else { return }
         cancelCalibration()
         needsSessionCalibration = true
-        driftEstimator.reset()
+        resetDriftLearning(reason: "display layout changed")
         calibrationErrorKey = "显示器布局已变化，请重新校准屏幕"
         if settings.isEnabled, !isPaused {
             status = .needsCalibration
@@ -151,7 +180,7 @@ final class ScreenPrivacyStore: ObservableObject {
         selectedDisplayID = calibrationDisplays.first?.id
         completedDisplayIDs.removeAll()
         draftProfiles.removeAll()
-        driftEstimator.reset()
+        resetDriftLearning(reason: "calibration started")
         needsAutomaticRecentering = false
         calibrationErrorKey = nil
         capturedStages.removeAll()
@@ -222,6 +251,27 @@ final class ScreenPrivacyStore: ObservableObject {
         calibrationStage = .center
         status = .calibrating(.center)
         calibrationErrorKey = nil
+    }
+
+    /// Adjust one boundary angle of a calibrated display without recalibrating.
+    /// The change takes effect on the next motion sample and is persisted immediately.
+    func setDisplayAngle(
+        id: String,
+        edge keyPath: WritableKeyPath<ScreenPrivacyCalibrationProfile, Double>,
+        value: Double
+    ) {
+        guard let index = displayProfiles.firstIndex(where: { $0.id == id }) else { return }
+        let clamped = max(
+            ScreenPrivacyCalibrationProfile.minimumBoundaryAngle,
+            min(85, value.rounded())
+        )
+        guard displayProfiles[index].calibration[keyPath: keyPath] != clamped else { return }
+        let name = displayProfiles[index].name
+        displayProfiles[index].calibration[keyPath: keyPath] = clamped
+        settings.saveDisplayProfiles(displayProfiles)
+        HeadUpLog.privacy.info(
+            "[\(name, privacy: .public)] boundary angle changed to \(clamped, privacy: .public)°"
+        )
     }
 
     func previousCalibrationStep() {
@@ -322,6 +372,9 @@ final class ScreenPrivacyStore: ObservableObject {
                     status = .needsCalibration
                     if settings.keepCoveredOnTrackingLoss { showOverlay(message: "请校准屏幕方向后恢复保护") }
                 }
+                #if HEADUP_DEBUG
+                traceDriftPipeline(sample, note: "blocked: session recalibration required")
+                #endif
                 return
             }
             let connected = Set(displaysProvider().map(\.id))
@@ -330,9 +383,13 @@ final class ScreenPrivacyStore: ObservableObject {
                 yaw: sample.yaw, pitch: sample.pitch, at: sample.sensorTimestamp,
                 profiles: active.map { driftEstimator.corrected($0) }, thresholds: settings.thresholds
             )
-            driftEstimator.process(sample, displays: active, learningAllowed: reading.phase == .watching)
+            let didEvaluate = driftEstimator.process(sample, displays: active, learningAllowed: reading.phase == .watching)
+            if didEvaluate { driftStatusByID = driftEstimator.statusByID }
             horizontalOffset = reading.horizontalOffset
             verticalOffset = reading.verticalOffset
+            #if HEADUP_DEBUG
+            traceDriftPipeline(sample, activeDisplays: active, phase: reading.phase)
+            #endif
             apply(reading.phase)
             return
         }
@@ -364,7 +421,7 @@ final class ScreenPrivacyStore: ObservableObject {
         if !available, profile != nil {
             needsAutomaticRecentering = displayProfiles.isEmpty
             if !displayProfiles.isEmpty { needsSessionCalibration = true }
-            driftEstimator.reset()
+            resetDriftLearning(reason: "tracking unavailable")
         }
         guard settings.isEnabled, !isPaused else { return }
         if available {
@@ -455,7 +512,7 @@ final class ScreenPrivacyStore: ObservableObject {
         needsSessionCalibration = false
         displayProfiles = draftProfiles
         settings.saveDisplayProfiles(displayProfiles)
-        driftEstimator.reset()
+        resetDriftLearning(reason: "calibration finished")
         profile = newProfile
         needsAutomaticRecentering = false
         settings.saveCalibrationProfile(newProfile)

@@ -1,5 +1,43 @@
 # HeadUp 更新日志 / Changelog
 
+## HeadUp 0.3.1 [2026-09-14]
+
+### 中文
+
+#### 新功能
+
+- 每块已校准屏幕的左、右、上、下四个角度现在可以在“已校准屏幕”中直接展开调整，拖动后立即生效并保存，无需重新校准。
+
+#### 修复与可靠性
+
+- 改进漂移修正：不再把第一段采样锁定为零偏基线，校准时已经存在的传感器偏移也会被逐步修正。
+- 单次微调上限由 0.5° 提升到 1°（最快每分钟约 6°），并同时修正水平（偏航）与垂直（俯仰）两个方向的漂移。
+- 新增漂移诊断：设置中逐屏显示累计修正量、有效样本数和当前状态，包括样本不足、采样时长不足、分布过宽、暂停学习等跳过原因；每次微调与重置都会写入 Privacy 日志类别，可在“控制台”App 中核查。
+- 新增 preview 构建开关：`HEADUP_PREVIEW=1 ./script/build_and_run.sh build`（调试包）或 `HEADUP_PREVIEW=1 HEADUP_SIGNING_IDENTITY=- ./script/package_release.sh`（release 包）会以 `-DHEADUP_DEBUG` 编译，记录样本归属、速度门控、每屏修正后中心与偏移等逐秒调试日志（正式构建中这些高频日志会被编译移除）。
+- 去掉设置中所有滑块轨道下方的刻度点，改为连续轨道并按原步长吸附，界面更简洁。
+
+#### 验证
+
+- 新增既有偏移消除、垂直方向漂移、暂停学习诊断、样本不足诊断、逐屏角度调整持久化、调试日志开关，以及源码本地化调用点与文案表一致性扫描测试；普通与 preview 两种构建均编译验证通过。
+
+### English
+
+#### Features
+
+- Each calibrated screen now exposes editable left, right, upper, and lower angles under “Calibrated Screens”; changes apply and persist immediately without recalibration.
+
+#### Fixes and reliability
+
+- Improved drift correction: the first samples are no longer locked as the zero baseline, so sensor offset already present at calibration time is removed gradually.
+- Raised the per-step correction cap from 0.5° to 1° (up to about 6° per minute) and now corrects pitch drift alongside yaw drift.
+- Added drift diagnostics: per-screen correction totals, valid-sample counts, and the current status (including skip reasons such as insufficient samples, short windows, wide spread, and suspended learning). Every correction and reset is written to the Privacy log category for inspection in Console.app.
+- Added a preview build switch: `HEADUP_PREVIEW=1 ./script/build_and_run.sh build` (debug) or `HEADUP_PREVIEW=1 HEADUP_SIGNING_IDENTITY=- ./script/package_release.sh` (release) compiles with `-DHEADUP_DEBUG` and records per-second debug traces (sample attribution, speed gating, corrected centers and offsets per screen); these hot-path traces are compiled out of release builds.
+- Removed the tick marks under every settings slider in favor of continuous tracks that still snap to the previous increments.
+
+#### Verification
+
+- Added tests for pre-existing offset removal, pitch drift, suspended-learning diagnostics, insufficient-sample diagnostics, per-screen angle persistence, the debug-trace switch, and source-to-table localization coverage; both normal and preview builds compile cleanly.
+
 ## HeadUp 0.3.0 [2026-09-14]
 
 ### 中文

@@ -7,4 +7,5 @@ enum HeadUpLog {
     static let calibration = Logger(subsystem: "com.king.headup", category: "Calibration")
     static let reminders = Logger(subsystem: "com.king.headup", category: "Reminders")
     static let windowing = Logger(subsystem: "com.king.headup", category: "Windowing")
+    static let privacy = Logger(subsystem: "com.king.headup", category: "Privacy")
 }

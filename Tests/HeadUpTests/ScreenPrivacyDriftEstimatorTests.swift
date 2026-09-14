@@ -59,12 +59,72 @@ struct ScreenPrivacyDriftEstimatorTests {
             estimator.process(sample(t, yaw), displays: [a], learningAllowed: true)
             let current = estimator.corrected(a).centerYaw
             if i % 20 != 0 { #expect(current == last) }
-            #expect(abs(ScreenPrivacyCalibrationProfile.normalizedAngle(current - last)) <= 0.5)
+            #expect(abs(ScreenPrivacyCalibrationProfile.normalizedAngle(current - last)) <= 1.0 + 1e-9)
             last = current
         }
         #expect(ScreenPrivacyCalibrationProfile.normalizedAngle(last - 179) > 2)
         estimator.reset()
         #expect(estimator.corrected(a).centerYaw == 179)
+    }
+
+    @Test func preExistingOffsetIsGraduallyRemovedWithoutBaselineLock() {
+        // The offset exists from the very first sample; the old baseline lock kept it forever.
+        let a = display("a", 0)
+        var estimator = ScreenPrivacyDriftEstimator()
+        for i in 0...100 {
+            let t = Double(i) * 0.5
+            estimator.process(sample(t, 6), displays: [a], learningAllowed: true)
+        }
+        #expect(estimator.corrected(a).centerYaw > 3)
+        if case .applied = estimator.status(for: "a").outcome { } else {
+            Issue.record("Expected an applied evaluation, got \(estimator.status(for: "a").outcome)")
+        }
+    }
+
+    @Test func pitchDriftIsCorrectedIndependently() {
+        let a = display("a", 0)
+        var estimator = ScreenPrivacyDriftEstimator()
+        for i in 0...80 {
+            let t = Double(i) * 0.5
+            estimator.process(
+                .init(pitch: 4, roll: 0, yaw: 0, sensorTimestamp: t, timestamp: Date(timeIntervalSince1970: t)),
+                displays: [a], learningAllowed: true
+            )
+        }
+        #expect(estimator.status(for: "a").pitchCorrection > 2)
+        #expect(abs(estimator.status(for: "a").yawCorrection) < 1e-9)
+        #expect(abs(estimator.corrected(a).centerPitch - 4) < 2)
+    }
+
+    @Test func suspendedLearningFreezesCorrectionAndReportsReason() {
+        let a = display("a", 0)
+        var estimator = ScreenPrivacyDriftEstimator()
+        for i in 0...40 {
+            let t = Double(i) * 0.5
+            estimator.process(sample(t, 4), displays: [a], learningAllowed: true)
+        }
+        let frozen = estimator.status(for: "a").yawCorrection
+        #expect(frozen > 0)
+        for i in 41...80 {
+            let t = Double(i) * 0.5
+            estimator.process(sample(t, 4), displays: [a], learningAllowed: false)
+        }
+        #expect(estimator.status(for: "a").yawCorrection == frozen)
+        #expect(estimator.status(for: "a").outcome == .learningSuspended)
+    }
+
+    @Test func sparseSamplesReportInsufficientReason() {
+        let a = display("a", 0)
+        var estimator = ScreenPrivacyDriftEstimator()
+        for i in 0...10 {
+            estimator.process(sample(Double(i), 2), displays: [a], learningAllowed: true)
+        }
+        guard case .insufficientSamples(let have, let needed) = estimator.status(for: "a").outcome else {
+            Issue.record("Expected insufficientSamples, got \(estimator.status(for: "a").outcome)")
+            return
+        }
+        #expect(have == 10)
+        #expect(needed == ScreenPrivacyDriftEstimator.minimumSampleCount)
     }
 
     @Test func multipleScreenUnionPreservesCoverAndRecoveryDelay() {

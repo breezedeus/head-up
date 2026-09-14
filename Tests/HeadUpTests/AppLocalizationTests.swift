@@ -69,4 +69,32 @@ struct AppLocalizationTests {
             #expect(placeholders(key) == placeholders(chinese[key] ?? ""), "Chinese placeholders: \(key)")
         }
     }
+
+    @Test func everyLocalizedCallSiteKeyExistsInBothTables() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let sourceRoot = root.appendingPathComponent("Sources/HeadUp")
+        func table(_ language: String) throws -> Set<String> {
+            let url = root.appendingPathComponent("Sources/HeadUp/Resources/\(language).lproj/Localizable.strings")
+            let data = try Data(contentsOf: url)
+            let dictionary = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String])
+            return Set(dictionary.keys)
+        }
+        let english = try table("en")
+        let chinese = try table("zh-Hans")
+        let pattern = try NSRegularExpression(pattern: #"L10n\.(?:text|format)\(\s*"((?:[^"\\]|\\.)*)""#)
+        let enumerator = try #require(FileManager.default.enumerator(at: sourceRoot, includingPropertiesForKeys: nil))
+        var missing = [String]()
+        for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
+            let source = try String(contentsOf: fileURL, encoding: .utf8)
+            let range = NSRange(source.startIndex..., in: source)
+            pattern.enumerateMatches(in: source, range: range) { match, _, _ in
+                guard let match, let keyRange = Range(match.range(at: 1), in: source) else { return }
+                let key = String(source[keyRange])
+                if !english.contains(key) || !chinese.contains(key) {
+                    missing.append("\(fileURL.lastPathComponent): \(key)")
+                }
+            }
+        }
+        #expect(missing.isEmpty, "Localized keys missing from a table: \(missing)")
+    }
 }

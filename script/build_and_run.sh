@@ -17,12 +17,26 @@ VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
 BUILD_NUMBER="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
 RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
+# HEADUP_PREVIEW=1 builds a preview/debug binary: compile with -DHEADUP_DEBUG so
+# high-frequency drift diagnostics are included and elevated to info-level logs.
+PREVIEW_BUILD=0
+if [[ "${HEADUP_PREVIEW:-0}" == "1" ]]; then
+  PREVIEW_BUILD=1
+fi
+SWIFT_BUILD_ARGS=()
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  SWIFT_BUILD_ARGS+=(-Xswiftc -DHEADUP_DEBUG)
+fi
+
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 cd "$ROOT_DIR"
-swift build
-BUILD_DIR="$(swift build --show-bin-path)"
+swift build "${SWIFT_BUILD_ARGS[@]}"
+BUILD_DIR="$(swift build "${SWIFT_BUILD_ARGS[@]}" --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  echo "Preview build: HEADUP_DEBUG enabled, verbose drift logs will be recorded."
+fi
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS"
@@ -45,6 +59,12 @@ for app_language in en zh-Hans; do
   mkdir -p "$APP_CONTENTS/Resources"/"$app_language.lproj"
   cp "$ROOT_DIR/Sources/HeadUp/Resources/$app_language.lproj/InfoPlist.strings" "$APP_CONTENTS/Resources"/"$app_language.lproj/InfoPlist.strings"
 done
+
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  PREVIEW_PLIST_LINE=$'\t<key>HeadUpPreviewBuild</key><true/>'
+else
+  PREVIEW_PLIST_LINE=""
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,6 +90,7 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$VERSION</string>
   <key>CFBundleVersion</key>
   <string>$BUILD_NUMBER</string>
+$PREVIEW_PLIST_LINE
   <key>CFBundleIconFile</key>
   <string>HeadUp</string>
   <key>LSApplicationCategoryType</key>
@@ -106,6 +127,13 @@ open_app() {
 }
 
 case "$MODE" in
+  --build|build)
+    if [[ "$PREVIEW_BUILD" == "1" ]]; then
+      echo "Built PREVIEW $APP_BUNDLE ($VERSION, build $BUILD_NUMBER) with debug drift logging"
+    else
+      echo "Built $APP_BUNDLE ($VERSION, build $BUILD_NUMBER)"
+    fi
+    ;;
   run)
     open_app
     ;;
@@ -114,11 +142,15 @@ case "$MODE" in
     ;;
   --logs|logs)
     open_app
-    /usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
+    log_level_args=(--info)
+    [[ "$PREVIEW_BUILD" == "1" ]] && log_level_args+=(--debug)
+    /usr/bin/log stream "${log_level_args[@]}" --style compact --predicate "process == \"$APP_NAME\""
     ;;
   --telemetry|telemetry)
     open_app
-    /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
+    log_level_args=(--info)
+    [[ "$PREVIEW_BUILD" == "1" ]] && log_level_args+=(--debug)
+    /usr/bin/log stream "${log_level_args[@]}" --style compact --predicate "subsystem == \"$BUNDLE_ID\""
     ;;
   --verify|verify)
     open_app
@@ -126,7 +158,8 @@ case "$MODE" in
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [build|run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "       set HEADUP_PREVIEW=1 to compile a preview build with verbose drift debug logs" >&2
     exit 2
     ;;
 esac

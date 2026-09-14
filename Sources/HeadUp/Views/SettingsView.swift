@@ -134,10 +134,21 @@ private struct PostureSettingsView: View {
     private func angleSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
         LabeledContent(title) {
             HStack {
-                Slider(value: value, in: range, step: 1).frame(width: 220)
+                Slider(value: value.snapped(to: 1), in: range).frame(width: 220)
                 Text("\(Int(value.wrappedValue))°").monospacedDigit().frame(width: 36, alignment: .trailing)
             }
         }
+    }
+}
+
+private extension Binding where Value == Double {
+    /// Continuous-track binding that snaps the value to a grid, avoiding the tick marks
+    /// that SwiftUI draws for stepped sliders on macOS.
+    func snapped(to step: Double) -> Binding<Double> {
+        Binding(
+            get: { wrappedValue },
+            set: { wrappedValue = ($0 / step).rounded() * step }
+        )
     }
 }
 
@@ -202,12 +213,13 @@ private struct ScreenPrivacySettingsView: View {
             } else {
                 Section(L10n.text("已校准屏幕")) {
                     ForEach(store.displayProfiles) { display in
-                        LabeledContent(display.name) {
-                            Text(L10n.text("左 {0}° · 右 {1}°", "\(Int(display.calibration.leftAngle))", "\(Int(display.calibration.rightAngle))"))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
+                        CalibratedDisplayEditor(
+                            store: store,
+                            display: display,
+                            driftStatus: store.driftStatusByID[display.id]
+                        )
                     }
-                    Text(L10n.text("每块屏幕独立学习，每 10 秒检查一次微调。边界调整请重新校准对应屏幕。"))
+                    Text(L10n.text("每块屏幕独立学习，每 10 秒检查一次微调；四个角度可直接调整并立即生效。"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -242,7 +254,7 @@ private struct ScreenPrivacySettingsView: View {
     private func angleSlider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
         LabeledContent(title) {
             HStack {
-                Slider(value: value, in: range, step: 1).frame(width: 220)
+                Slider(value: value.snapped(to: 1), in: range).frame(width: 220)
                 Text("\(Int(value.wrappedValue))°").monospacedDigit().frame(width: 36, alignment: .trailing)
             }
         }
@@ -260,6 +272,90 @@ private struct ScreenPrivacySettingsView: View {
 
     private func signed(_ value: Double) -> String {
         value.formatted(.number.sign(strategy: .always()).precision(.fractionLength(0)))
+    }
+}
+
+/// Per-screen four-angle editor with live drift-correction diagnostics.
+private struct CalibratedDisplayEditor: View {
+    @ObservedObject var store: ScreenPrivacyStore
+    let display: ScreenPrivacyDisplayProfile
+    let driftStatus: ScreenPrivacyDriftStatus?
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            DisclosureGroup(isExpanded: $expanded) {
+                VStack(spacing: 2) {
+                    angleRow(L10n.text("向左"), edge: \.leftAngle, range: 5...85)
+                    angleRow(L10n.text("向右"), edge: \.rightAngle, range: 5...85)
+                    angleRow(L10n.text("向上"), edge: \.upAngle, range: 5...60)
+                    angleRow(L10n.text("向下"), edge: \.downAngle, range: 5...60)
+                }
+                .padding(.top, 6)
+            } label: {
+                HStack {
+                    Text(display.name).font(.subheadline.weight(.medium))
+                    Spacer()
+                    Text(L10n.text(
+                        "左 {0}° · 右 {1}° · 上 {2}° · 下 {3}°",
+                        "\(Int(display.calibration.leftAngle))",
+                        "\(Int(display.calibration.rightAngle))",
+                        "\(Int(display.calibration.upAngle))",
+                        "\(Int(display.calibration.downAngle))"
+                    ))
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            .buttonStyle(.plain)
+            .help(L10n.text("展开可直接调整这块屏幕的四个角度"))
+            driftSummary
+        }
+    }
+
+    private func angleRow(
+        _ title: String,
+        edge: WritableKeyPath<ScreenPrivacyCalibrationProfile, Double>,
+        range: ClosedRange<Double>
+    ) -> some View {
+        LabeledContent(title) {
+            HStack {
+                Slider(value: Binding(
+                    get: { display.calibration[keyPath: edge] },
+                    set: { store.setDisplayAngle(id: display.id, edge: edge, value: $0.rounded()) }
+                ), in: range).frame(width: 180)
+                Text("\(Int(display.calibration[keyPath: edge]))°")
+                    .monospacedDigit().frame(width: 34, alignment: .trailing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var driftSummary: some View {
+        Group {
+            if let status = driftStatus {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.secondary)
+                        Text(L10n.text(
+                            "累计微调 水平 {0}° · 垂直 {1}° · 有效样本 {2}",
+                            signed(status.yawCorrection),
+                            signed(status.pitchCorrection),
+                            "\(status.sampleCount)"
+                        ))
+                        Spacer()
+                    }
+                    Text(status.outcome.shortText)
+                }
+            } else {
+                Text(L10n.text("自动微调将在追踪开始后工作"))
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    private func signed(_ value: Double) -> String {
+        value.formatted(.number.sign(strategy: .always()).precision(.fractionLength(1)))
     }
 }
 
@@ -284,7 +380,7 @@ private struct PrivacyContentSettingsView: View {
                 }
                 if settings.backgroundStyle == .blur {
                     LabeledContent(L10n.text("压暗程度")) {
-                        Slider(value: $settings.dimOpacity, in: 0.1...0.75, step: 0.05).frame(width: 240)
+                        Slider(value: $settings.dimOpacity.snapped(to: 0.05), in: 0.1...0.75).frame(width: 240)
                     }
                 }
             }

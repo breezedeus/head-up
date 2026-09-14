@@ -51,6 +51,30 @@ struct ScreenPrivacyStoreTests {
         #expect(store.status == .needsCalibration)
     }
 
+    @Test func perDisplayAnglesAreAdjustableWithoutRecalibration() throws {
+        let name = "HeadUpTests.angles.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let settings = ScreenPrivacySettings(defaults: defaults)
+        let profile = ScreenPrivacyCalibrationProfile(
+            centerYaw: 0, centerPitch: 0, leftYawDirection: 1, upPitchDirection: 1,
+            leftAngle: 23, rightAngle: 16, upAngle: 12, downAngle: 14
+        )
+        settings.saveDisplayProfiles([.init(id: "a", name: "内建显示屏", calibration: profile)])
+        let store = ScreenPrivacyStore(settings: settings, displaysProvider: {
+            [.init(id: "a", name: "内建显示屏")]
+        })
+        store.setDisplayAngle(id: "a", edge: \.leftAngle, value: 31)
+        #expect(store.displayProfiles.first?.calibration.leftAngle == 31)
+        #expect(settings.displayProfiles.first?.calibration.leftAngle == 31)
+        // Values below the minimum boundary are clamped instead of saved.
+        store.setDisplayAngle(id: "a", edge: \.rightAngle, value: 1)
+        #expect(store.displayProfiles.first?.calibration.rightAngle == ScreenPrivacyCalibrationProfile.minimumBoundaryAngle)
+        // Unknown displays are ignored.
+        store.setDisplayAngle(id: "missing", edge: \.leftAngle, value: 40)
+        #expect(store.displayProfiles.count == 1)
+    }
+
     @Test func cancellationStopsPendingCountdown() async throws {
         let name = "HeadUpTests.cancel.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))

@@ -18,6 +18,17 @@ ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.zip"
 DSYM_ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.dSYM.zip"
 RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
+# HEADUP_PREVIEW=1 keeps the -DHEADUP_DEBUG verbose drift diagnostics in an
+# optimized release build and marks the bundle via HeadUpPreviewBuild in Info.plist.
+PREVIEW_BUILD=0
+if [[ "${HEADUP_PREVIEW:-0}" == "1" ]]; then
+  PREVIEW_BUILD=1
+fi
+SWIFT_BUILD_ARGS=(-c release --arch arm64 --arch x86_64)
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  SWIFT_BUILD_ARGS+=(-Xswiftc -DHEADUP_DEBUG)
+fi
+
 require_xcbuild_for_universal_build() {
   local developer_dir
   developer_dir="$(xcode-select -p 2>/dev/null || true)"
@@ -75,8 +86,11 @@ if [[ ! -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
 fi
 
 cd "$ROOT_DIR"
-swift build -c release --arch arm64 --arch x86_64
-BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  echo "Preview release: HEADUP_DEBUG enabled, verbose drift logs will be recorded."
+fi
+swift build "${SWIFT_BUILD_ARGS[@]}"
+BUILD_DIR="$(swift build "${SWIFT_BUILD_ARGS[@]}" --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
 mkdir -p "$RELEASE_DIR"
@@ -101,6 +115,12 @@ for app_language in en zh-Hans; do
   cp "$ROOT_DIR/Sources/HeadUp/Resources/$app_language.lproj/InfoPlist.strings" "$APP_RESOURCES"/"$app_language.lproj/InfoPlist.strings"
 done
 
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  PREVIEW_PLIST_LINE=$'\t<key>HeadUpPreviewBuild</key><true/>'
+else
+  PREVIEW_PLIST_LINE=""
+fi
+
 cat >"$APP_CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -116,6 +136,7 @@ cat >"$APP_CONTENTS/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
+$PREVIEW_PLIST_LINE
   <key>CFBundleIconFile</key><string>HeadUp</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.healthcare-fitness</string>
   <key>LSMinimumSystemVersion</key><string>$MIN_SYSTEM_VERSION</string>
