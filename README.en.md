@@ -2,68 +2,77 @@
 
 [简体中文](README.md) · [English](README.en.md)
 
-HeadUp is a native macOS menu bar app that uses motion data from compatible AirPods to help you avoid keeping your head lowered for too long. It can also blur and dim every display when your head turns outside a calibrated work area.
+While you work with AirPods, HeadUp helps you look after your neck and protects what is on your screens when you turn away.
 
-The dashboard shows your current downward head angle, reminder countdown, posture history for the last 60 minutes, daily good-posture percentage, and reminder count. All posture processing and storage stay on your Mac.
+It lives in the Mac menu bar and does not use a camera. When you face your screens again, the cover disappears automatically so you can get straight back to work.
+
+## Two practical ways HeadUp helps
+
+### Protect your screens when you turn away
+
+In an office or shared workspace, you may turn to speak with a coworker, look down for something, or leave your desk. When your head moves outside your normal work area, HeadUp can automatically blur and dim every display, reducing the chance that someone nearby sees private chats, customer information, or internal documents.
+
+- Detects turns to the left and right as well as looking up and down
+- Protects every connected display at the same time
+- Restores your screens automatically when you face your work area again
+- Keeps your setup when you temporarily remove one AirPod; protection continues when the remaining earbud still provides head tracking
+- Recovers automatically after a brief AirPods reconnection without asking you to set the four boundaries again
+- Lets you press `Esc` to reveal your screens immediately and pause protection
+
+The screen cover can also become a calm information page. You can choose to show:
+
+- The system date and time
+- Current weather
+- Your own message, such as “Back soon” or a note for office visitors
+- A blurred and dimmed desktop or a solid-color background
+
+### Remind you when your head stays lowered
+
+HeadUp learns the difference between your upright position and the way you naturally look down. If your head stays lowered for longer than the time you choose, it can remind you with a notification, sound, or on-screen prompt.
+
+The menu bar panel also shows your current downward angle, reminder countdown, posture changes over the last hour, and today's good-posture percentage.
+
+## Get started in three minutes
+
+1. Connect head-tracking AirPods to your Mac and open HeadUp.
+2. Allow Motion & Fitness access when prompted.
+3. Complete the two-step posture setup: look straight at your screen, then lower your head naturally.
+4. To use screen protection, open **Settings → Screen Protection**, turn it on, and look at the center, far-left, far-right, highest, and lowest points of your work area when prompted.
+5. Open **Settings → Overlay Content** to choose the cover style and whether to show the time, weather, or a custom message.
+
+The four-direction setup adapts HeadUp to your desk. A single display, side-by-side displays, and vertically arranged displays can all have different work areas. Once setup is complete, normal earbud changes and brief disconnections will not make you repeat it.
+
+HeadUp shows a short guide on first launch. You can open it again from the menu in the top-right corner of the menu bar panel.
+
+## Privacy
+
+HeadUp uses head-direction data from your AirPods. It does not use a camera and cannot tell which item on your screen you are looking at. Head-angle data and posture history stay on your Mac.
+
+Weather is off by default. When enabled, HeadUp sends only the city you entered to Open-Meteo. See [PRIVACY.md](PRIVACY.md) for more details.
 
 ## Requirements
 
 - macOS 14 or later
-- AirPods that support head tracking and are connected to the Mac
-- Motion & Fitness permission when monitoring is first enabled; system notifications are optional
+- AirPods or Beats that support head tracking and are connected to your Mac
+- Motion & Fitness permission; notification permission is optional
 
-## Releases
+## Download and install
 
-The project does not currently provide a publicly distributed build signed with Developer ID and notarized by Apple. For development and testing, build the app from source. Future signed releases will be published on [GitHub Releases](https://github.com/breezedeus/head-up/releases) together with SHA-256 checksum files.
-
-## Build and run
-
-Use the **Run** action in Codex, or run:
+The project does not yet provide a publicly distributed build notarized by Apple. Official builds will be published on [GitHub Releases](https://github.com/breezedeus/head-up/releases). For now, you can build it from source:
 
 ```bash
 ./script/build_and_run.sh
 ```
 
-The development app is created at `dist/HeadUp.app`. The script applies an ad-hoc signature, similar to Xcode's **Sign to Run Locally**, so macOS can associate Motion & Fitness permission and local notifications with a stable app identity.
+The app is created at `dist/HeadUp.app`. If you have trouble with the connection, permissions, or reminders, see [SUPPORT.md](SUPPORT.md).
 
-On first launch, HeadUp presents a short setup guide. Connect and wear your AirPods, then calibrate from the menu bar panel:
+## Developer information
 
-1. Sit upright and look straight at the screen for two seconds.
-2. Lower your head naturally, as you would when looking at the keyboard, for two seconds.
-3. HeadUp learns your downward direction and starts monitoring sustained low-head posture.
-
-You can reopen the guide from the menu in the top-right corner of the dashboard. See [SUPPORT.md](SUPPORT.md) for troubleshooting and issue-reporting guidance.
-
-## Features
-
-- Calibrated low-head detection using AirPods head-motion data
-- Configurable angle threshold, reminder delay, and cooldown
-- Floating reminder HUD with an optional system notification
-- Automatic reminder suppression while walking or running on macOS 15 or later
-- Recent 60-minute posture timeline and persistent daily summaries
-- Launch-at-login option and privacy-safe diagnostic information for support
-- Connection liveness checks that avoid reporting AirPods as connected without real connection evidence
-- Four-direction screen protection with separate left, right, upper, and lower work-area boundaries
-- Multi-display blur overlays with system date/time, optional weather, and custom text
-
-Screen protection is off by default. In **Settings → Screen Protection**, capture the center, left, right, upper, and lower edges of your normal work area. Any direction can trigger protection after the configured delay. Press `Esc` to pause protection and reveal the screens.
-
-## Development checks
+Run tests and build verification with:
 
 ```bash
 swift test
 ./script/build_and_run.sh --verify
-./script/build_and_run.sh --telemetry
 ```
 
-Telemetry records lifecycle events, verified AirPods connection changes, calibration stages, and reminders. It does not log a continuous stream of head-angle values.
-
-## Distribution
-
-The release pipeline supports a universal `arm64`/`x86_64` build, Hardened Runtime, Developer ID signing, Apple notarization, SHA-256 checksums, and archived dSYM files. It will not publish an official installer until Developer ID credentials are configured. See [RELEASING.md](RELEASING.md) for the release process and [PRIVACY.md](PRIVACY.md) for data-handling details.
-
-## Privacy and limitations
-
-HeadUp processes head orientation and screen protection locally and does not include analytics, advertising, accounts, or cloud synchronization. Optional weather requests send only the city entered by the user to Open-Meteo.
-
-AirPods provide head-motion information, not full-body posture. HeadUp can detect sustained downward head posture, but AirPods alone cannot determine whether you are sitting or standing or measure your spine, shoulders, hips, or back support. HeadUp is a wellness utility, not a medical device. See [AirPods posture-related capabilities](docs/AIRPODS_CAPABILITIES.md) for the API audit and product boundaries.
+See [RELEASING.md](RELEASING.md) for signing and release steps. HeadUp can identify head direction from AirPods motion data, but it cannot measure slouching, bending at the waist, shoulder position, or whether you are sitting or standing. It is not a medical device.
