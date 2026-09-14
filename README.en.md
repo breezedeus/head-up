@@ -2,35 +2,58 @@
 
 [简体中文](README.md) · [English](README.en.md)
 
-While you work with AirPods, HeadUp helps you look after your neck and protects what is on your screens when you turn away.
+**While you work with AirPods, HeadUp looks after your neck and automatically covers your screens the moment you turn away.** It lives in the Mac menu bar and uses no camera. Face your screens again and the cover disappears — no clicks required.
 
-It lives in the Mac menu bar and does not use a camera. When you face your screens again, the cover disappears automatically so you can get straight back to work.
+<p align="center">
+  <img src="docs/images/headup-status.png" width="380" alt="HeadUp menu bar panel: live head-down angle, the last 60 minutes of posture, and today's stats" />
+</p>
 
-## Two practical ways HeadUp helps
+## Highlights
 
-### Protect your screens when you turn away
+- **Automatic privacy cover**: blurs and dims every display when your head leaves your work area, restores instantly when you look back
+- **Four-direction tracking**: independent boundaries for left, right, up, and down
+- **Multiple displays**: protects every screen at once, with four independently adjustable angles per display
+- **Drift auto-correction**: each display learns and cancels slow head-pose drift, so boundaries stay accurate over long sessions
+- **Posture reminders**: a notification, sound, or on-screen prompt when your head stays lowered too long
+- **A cover that informs**: show the time, weather, or a custom message over a blurred or solid background
+- **AirPods-friendly**: removing one earbud or a brief reconnect never wipes your calibration; press `Esc` to reveal screens at any time
 
-In an office or shared workspace, you may turn to speak with a coworker, look down for something, or leave your desk. When your head moves outside your normal work area, HeadUp can automatically blur and dim every display, reducing the chance that someone nearby sees private chats, customer information, or internal documents.
+## Protect your screens when you turn away
 
-- Detects turns to the left and right as well as looking up and down
-- Protects every connected display at the same time
-- Restores your screens automatically when you face your work area again
-- Keeps your setup when you temporarily remove one AirPod; protection continues when the remaining earbud still provides head tracking
-- Recovers automatically after a brief AirPods reconnection without asking you to set the four boundaries again
-- Lets you press `Esc` to reveal your screens immediately and pause protection
+In an office or shared workspace, when you turn to speak with a coworker, look down for something, or leave your desk, HeadUp blurs and dims every display the instant your head crosses a work boundary — reducing the chance that nearby people see private chats, customer information, or internal documents.
 
-The screen cover can also become a calm information page. You can choose to show:
+<p align="center">
+  <img src="docs/images/headup-protection-settings.png" width="720" alt="Screen Protection settings: workspace calibration and the allowed left, right, up, and down angles" />
+</p>
 
-- The system date and time
-- Current weather
+- Detects turns left and right as well as looking up and down — not just one direction
+- Supports multiple displays and protects them all at once
+- **Fine-tune all four angles of every display independently; changes apply instantly with no recalibration**
+- Built-in drift correction learns and offsets slow AirPods pose drift per display, so boundaries stay put even after hours of wear
+- Restores automatically when you face your work area again — no click or unlock
+- Temporarily removing one AirPod keeps your setup; protection resumes after a brief reconnect without recalibrating
+- Press `Esc` to reveal your screens immediately and pause protection
+
+The cover can also be a calm information page. Choose what it shows:
+
+<p align="center">
+  <img src="docs/images/headup-protection-settings2.png" width="720" alt="Overlay Content settings: cover style, dimming level, date and time, weather, and custom text" />
+</p>
+
+- System date and time, with optional seconds
+- Current weather (powered by Open-Meteo, off by default)
 - Your own message, such as “Back soon” or a note for office visitors
-- A blurred and dimmed desktop or a solid-color background
+- A blurred and dimmed desktop or a solid-color background, with adjustable dimming
 
-### Remind you when your head stays lowered
+## Remind you when your head stays lowered
 
-HeadUp learns the difference between your upright position and the way you naturally look down. If your head stays lowered for longer than the time you choose, it can remind you with a notification, sound, or on-screen prompt.
+HeadUp learns the difference between your upright position and the way you naturally look down. If your head stays lowered longer than the time you choose, it reminds you to move with a notification, sound, or on-screen prompt.
 
-The menu bar panel also shows your current downward angle, reminder countdown, posture changes over the last hour, and today's good-posture percentage.
+<p align="center">
+  <img src="docs/images/headup-posture.png" width="720" alt="Posture Reminder settings: head-down threshold, duration, cooldown, and alert methods" />
+</p>
+
+The menu bar panel always shows your current downward angle, the reminder countdown, posture changes over the last 60 minutes, and today's good-posture percentage (see the panel at the top).
 
 ## Get started in three minutes
 
@@ -40,13 +63,13 @@ The menu bar panel also shows your current downward angle, reminder countdown, p
 4. To use screen protection, open **Settings → Screen Protection**, turn it on, and look at the center, far-left, far-right, highest, and lowest points of your work area when prompted.
 5. Open **Settings → Overlay Content** to choose the cover style and whether to show the time, weather, or a custom message.
 
-The four-direction setup adapts HeadUp to your desk. A single display, side-by-side displays, and vertically arranged displays can all have different work areas. Once setup is complete, normal earbud changes and brief disconnections will not make you repeat it.
+The four-direction setup adapts HeadUp to your desk — single displays, side-by-side displays, and stacked displays can all have different work areas, and all four angles of each display remain adjustable afterward. Once setup is complete, normal earbud changes and brief disconnections will not make you repeat it.
 
-HeadUp shows a short guide on first launch. You can open it again from the menu in the top-right corner of the menu bar panel.
+A short guide appears on first launch; you can reopen it from the menu in the top-right corner of the menu bar panel.
 
 ## Privacy
 
-HeadUp uses head-direction data from your AirPods. It does not use a camera and cannot tell which item on your screen you are looking at. Head-angle data and posture history stay on your Mac.
+HeadUp uses head-direction data from your AirPods. It does not use a camera and cannot tell which item on your screen you are looking at. Head-angle data and posture history stay on this Mac.
 
 Weather is off by default. When enabled, HeadUp sends only the city you entered to Open-Meteo. See [PRIVACY.md](PRIVACY.md) for more details.
 
