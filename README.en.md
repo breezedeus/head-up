@@ -2,7 +2,7 @@
 
 [简体中文](README.md) · [English](README.en.md)
 
-HeadUp is a native macOS menu bar app that uses motion data from compatible AirPods to help you avoid keeping your head lowered for too long.
+HeadUp is a native macOS menu bar app that uses motion data from compatible AirPods to help you avoid keeping your head lowered for too long. It can also blur and dim every display when your head turns outside a calibrated work area.
 
 The dashboard shows your current downward head angle, reminder countdown, posture history for the last 60 minutes, daily good-posture percentage, and reminder count. All posture processing and storage stay on your Mac.
 
@@ -43,6 +43,10 @@ You can reopen the guide from the menu in the top-right corner of the dashboard.
 - Recent 60-minute posture timeline and persistent daily summaries
 - Launch-at-login option and privacy-safe diagnostic information for support
 - Connection liveness checks that avoid reporting AirPods as connected without real connection evidence
+- Four-direction screen protection with separate left, right, upper, and lower work-area boundaries
+- Multi-display blur overlays with system date/time, optional weather, and custom text
+
+Screen protection is off by default. In **Settings → Screen Protection**, capture the center, left, right, upper, and lower edges of your normal work area. Any direction can trigger protection after the configured delay. Press `Esc` to pause protection and reveal the screens.
 
 ## Development checks
 
@@ -60,6 +64,6 @@ The release pipeline supports a universal `arm64`/`x86_64` build, Hardened Runti
 
 ## Privacy and limitations
 
-HeadUp processes posture data locally and does not include analytics, advertising, accounts, or cloud synchronization.
+HeadUp processes head orientation and screen protection locally and does not include analytics, advertising, accounts, or cloud synchronization. Optional weather requests send only the city entered by the user to Open-Meteo.
 
 AirPods provide head-motion information, not full-body posture. HeadUp can detect sustained downward head posture, but AirPods alone cannot determine whether you are sitting or standing or measure your spine, shoulders, hips, or back support. HeadUp is a wellness utility, not a medical device. See [AirPods posture-related capabilities](docs/AIRPODS_CAPABILITIES.md) for the API audit and product boundaries.

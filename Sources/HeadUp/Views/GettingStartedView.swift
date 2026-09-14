@@ -18,7 +18,7 @@ struct GettingStartedView: View {
                     .accessibilityHidden(true)
                 Text("欢迎使用抬头")
                     .font(.largeTitle.weight(.semibold))
-                Text("用 AirPods 感知持续低头，在真正僵住之前提醒你。")
+                Text("用 AirPods 提醒持续低头，也能在你转开时保护屏幕。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -26,7 +26,7 @@ struct GettingStartedView: View {
             VStack(spacing: 14) {
                 step("1", title: "安装并连接", detail: "先将抬头移入“应用程序”，再戴上支持头部追踪的 AirPods。")
                 step("2", title: "完成两步校准", detail: "先坐直平视，再像平时看键盘一样自然低头。")
-                step("3", title: "让它留在菜单栏", detail: "持续低头达到阈值时，抬头会通过浮层和提示音提醒你。")
+                step("3", title: "按需开启屏幕保护", detail: "在设置中校准左右、仰头和低头边界；转出工作区后会遮挡所有屏幕。")
             }
 
             Label("姿态数据只在本机处理和保存", systemImage: "lock.shield.fill")

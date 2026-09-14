@@ -72,7 +72,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>LSUIElement</key>
   <true/>
   <key>NSMotionUsageDescription</key>
-  <string>抬头需要读取 AirPods 的头部运动数据，以判断你是否持续低头。</string>
+  <string>抬头需要读取 AirPods 的头部运动数据，用于姿态提醒和离开工作区时保护屏幕。</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>
@@ -91,6 +91,9 @@ open_app() {
   fi
   if [[ "${HEADUP_AUTOCOMPLETE_ONBOARDING:-}" == "1" ]]; then
     open_args+=(--env "HEADUP_AUTOCOMPLETE_ONBOARDING=1")
+  fi
+  if [[ "${HEADUP_SETTINGS_SNAPSHOT:-}" == "1" ]]; then
+    open_args+=(--env "HEADUP_SETTINGS_SNAPSHOT=1")
   fi
   /usr/bin/open "${open_args[@]}" "$APP_BUNDLE"
 }

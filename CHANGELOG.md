@@ -1,5 +1,25 @@
 # HeadUp Releases
 
+## HeadUp 0.3.0 [2026-09-14]
+
+### Features
+
+- Added optional AirPods-based screen protection that covers every connected display when the wearer turns outside a calibrated work area.
+- Added five-step calibration for the center, left, right, upper, and lower work-area boundaries, with independent angle and response-delay controls.
+- Added blur-and-dim and solid-color overlays with system date and time, optional Open-Meteo weather, and custom text.
+- Reorganized settings into General, Posture Reminder, Screen Protection, and Overlay Content tabs, with quick protection status and controls in the menu bar dashboard.
+
+### Reliability and privacy
+
+- Added hysteresis and separate cover/reveal delays to avoid flickering near a boundary.
+- Kept protection active when AirPods tracking is lost, with an `Esc` escape path, and filtered duplicate Core Motion frames from liveness checks.
+- Kept head-orientation processing local; optional weather requests send only the configured city to Open-Meteo.
+
+### Verification
+
+- Added tests for four-direction boundary detection, wrapped yaw calibration, persistence, weather-code mapping, and duplicate motion samples.
+- Verified the settings tabs, full-screen blur preview, `Esc` recovery, application build, and launch flow.
+
 ## HeadUp 0.2.6 [2026-07-08]
 
 ### Fixes

@@ -2,6 +2,17 @@ import Testing
 @testable import HeadUp
 
 struct PostureModelsTests {
+    @Test func repeatedMotionFrameDoesNotCountAsFreshData() {
+        var gate = MotionSampleFreshnessGate()
+        let first = gate.accept(timestamp: 10)
+        let repeated = gate.accept(timestamp: 10)
+        let newer = gate.accept(timestamp: 10.01)
+
+        #expect(first)
+        #expect(!repeated)
+        #expect(newer)
+    }
+
     @Test func menuBarIconNamesCoverDistinctPostureStates() {
         #expect(PostureStatus.disconnected.menuBarIconName == "menu-disconnected")
         #expect(PostureStatus.unavailable.menuBarIconName == "menu-calibrating")

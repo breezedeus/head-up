@@ -31,6 +31,14 @@ struct DashboardView: View {
 
                 Menu {
                     Button("测试提醒") { store.testReminder() }
+                    Button(store.privacySettings.isEnabled ? "关闭屏幕保护" : "开启屏幕保护") {
+                        store.setScreenPrivacyEnabled(!store.privacySettings.isEnabled)
+                    }
+                    if store.privacySettings.isEnabled {
+                        Button(store.privacyStore.status == .paused ? "继续屏幕保护" : "暂停屏幕保护") {
+                            store.privacyStore.togglePause()
+                        }
+                    }
                     Button("使用指南") {
                         HeadUpWindowPresenter.present(id: HeadUpWindowID.guide, using: openWindow)
                     }
@@ -108,6 +116,13 @@ struct DashboardView: View {
             actionBar
                 .padding(.horizontal, 16)
                 .padding(.bottom, 18)
+
+            Divider()
+
+            ScreenPrivacyDashboardCard(store: store.privacyStore) {
+                HeadUpWindowPresenter.present(id: HeadUpWindowID.settings, using: openWindow)
+            }
+            .padding(16)
 
             Divider()
 
@@ -286,4 +301,88 @@ struct DashboardView: View {
         }
     }
 
+}
+
+private struct ScreenPrivacyDashboardCard: View {
+    @ObservedObject var store: ScreenPrivacyStore
+    @ObservedObject var settings: ScreenPrivacySettings
+    let openSettings: () -> Void
+
+    init(store: ScreenPrivacyStore, openSettings: @escaping () -> Void) {
+        self.store = store
+        settings = store.settings
+        self.openSettings = openSettings
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: iconName)
+                .font(.title3)
+                .foregroundStyle(iconColor)
+                .frame(width: 38, height: 38)
+                .background(iconColor.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(store.status.title)
+                    .font(.subheadline.weight(.medium))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(actionTitle) { performAction() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+    }
+
+    private var iconName: String {
+        switch store.status {
+        case .watching: return "checkmark.shield.fill"
+        case .covered, .revealingSoon: return "eye.slash.fill"
+        case .trackingLost: return "exclamationmark.shield.fill"
+        default: return "shield"
+        }
+    }
+
+    private var iconColor: Color {
+        switch store.status {
+        case .watching: return .green
+        case .covered, .trackingLost, .coveringSoon: return .orange
+        default: return .secondary
+        }
+    }
+
+    private var detail: String {
+        switch store.status {
+        case .watching:
+            return "水平 \(signed(store.horizontalOffset))° · 垂直 \(signed(store.verticalOffset))°"
+        default:
+            return store.statusDetail
+        }
+    }
+
+    private var actionTitle: String {
+        switch store.status {
+        case .disabled, .needsCalibration: return "设置"
+        case .paused: return "继续"
+        default: return "暂停"
+        }
+    }
+
+    private func performAction() {
+        switch store.status {
+        case .disabled, .needsCalibration:
+            openSettings()
+        default:
+            store.togglePause()
+        }
+    }
+
+    private func signed(_ value: Double) -> String {
+        value.formatted(.number.sign(strategy: .always()).precision(.fractionLength(0)))
+    }
 }

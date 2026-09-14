@@ -22,11 +22,11 @@ final class PostureStore: ObservableObject {
         didSet {
             if isMonitoring {
                 analyzer.reset()
-                motionService.restart()
+                motionService.setMotionUpdatesEnabled(true)
                 activityService.start()
                 refreshStatus()
             } else {
-                motionService.setMotionUpdatesEnabled(false)
+                updateMotionRequirement()
                 activityService.stop()
                 analyzer.reset()
                 status = .paused
@@ -36,6 +36,8 @@ final class PostureStore: ObservableObject {
     }
 
     let settings = AppSettings()
+    let privacySettings: ScreenPrivacySettings
+    let privacyStore: ScreenPrivacyStore
 
     private let motionService = HeadphoneMotionService()
     private let activityService = HeadphoneActivityService()
@@ -73,6 +75,9 @@ final class PostureStore: ObservableObject {
 
     init() {
         let defaults = UserDefaults.standard
+        let privacySettings = ScreenPrivacySettings(defaults: defaults)
+        self.privacySettings = privacySettings
+        privacyStore = ScreenPrivacyStore(settings: privacySettings)
         if defaults.object(forKey: DefaultsKey.baseline) != nil {
             analyzer.baselinePitch = defaults.double(forKey: DefaultsKey.baseline)
             analyzer.downwardDirection = defaults.double(forKey: DefaultsKey.direction) == 0
@@ -106,6 +111,9 @@ final class PostureStore: ObservableObject {
         }
         activityService.onActivityChanged = { [weak self] activity in
             self?.handleActivity(activity)
+        }
+        privacyStore.onMotionRequirementChanged = { [weak self] in
+            self?.updateMotionRequirement()
         }
 
         onboardingObserver = NotificationCenter.default.addObserver(
@@ -199,6 +207,11 @@ final class PostureStore: ObservableObject {
         presentReminder(angle: max(angle, settings.threshold))
     }
 
+    func setScreenPrivacyEnabled(_ enabled: Bool) {
+        privacyStore.setEnabled(enabled)
+        updateMotionRequirement()
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try loginItemService.setEnabled(enabled)
@@ -230,6 +243,8 @@ final class PostureStore: ObservableObject {
         Head tracking available: \(isTrackingAvailable)
         Headphone activity: \(headphoneActivity.diagnosticDescription)
         Monitoring enabled: \(isMonitoring)
+        Screen privacy enabled: \(privacySettings.isEnabled)
+        Screen privacy state: \(privacyStore.status.title)
         Calibrated: \(analyzer.isCalibrated)
         Installed in Applications: \(HeadUpAppInfo.isInstalledInApplications)
         """
@@ -241,6 +256,7 @@ final class PostureStore: ObservableObject {
 
     private func handle(_ sample: MotionSample) {
         isConnected = true
+        privacyStore.handle(sample)
 
         if let previous = lastMotionSampleAt,
            sample.timestamp.timeIntervalSince(previous) > 2 {
@@ -437,10 +453,15 @@ final class PostureStore: ObservableObject {
     private func handleTrackingAvailabilityChanged(_ available: Bool) {
         HeadUpLog.motion.notice("Headphone tracking availability changed; available=\(available, privacy: .public)")
         isTrackingAvailable = available
+        privacyStore.handleTrackingAvailabilityChanged(available)
         if !available {
             resetLiveSession()
         }
         refreshStatus()
+    }
+
+    private func updateMotionRequirement() {
+        motionService.setMotionUpdatesEnabled(isMonitoring || privacyStore.requiresMotionUpdates)
     }
 
     private func cancelCalibrationAfterDisconnect() {

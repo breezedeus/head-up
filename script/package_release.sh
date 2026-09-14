@@ -113,7 +113,7 @@ cat >"$APP_CONTENTS/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.healthcare-fitness</string>
   <key>LSMinimumSystemVersion</key><string>$MIN_SYSTEM_VERSION</string>
   <key>LSUIElement</key><true/>
-  <key>NSMotionUsageDescription</key><string>抬头需要读取 AirPods 的头部运动数据，以判断你是否持续低头。</string>
+  <key>NSMotionUsageDescription</key><string>抬头需要读取 AirPods 的头部运动数据，用于姿态提醒和离开工作区时保护屏幕。</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
 </plist>

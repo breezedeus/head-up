@@ -14,7 +14,7 @@ HeadUp uses only public Apple APIs.
 - User acceleration separated from gravity.
 - Headphone sensor location.
 
-HeadUp currently uses calibrated relative pitch for low-head detection. Quaternion/gravity-based tilt and rotation/acceleration gating are viable future refinements, but require hardware tuning before they should affect reminders.
+HeadUp uses calibrated relative pitch for low-head reminders. Its optional screen protection compares both relative yaw and pitch with user-calibrated left, right, upper, and lower work-area boundaries. Quaternion/gravity-based tilt and rotation/acceleration gating remain viable refinements, but require hardware tuning before they should affect behavior.
 
 ### Headphone activity — macOS 15+
 

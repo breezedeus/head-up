@@ -3,6 +3,8 @@ import Foundation
 struct MotionSample {
     let pitch: Double
     let roll: Double
+    let yaw: Double
+    let sensorTimestamp: TimeInterval
     let timestamp: Date
 }
 
