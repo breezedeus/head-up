@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct PrivacyOverlayView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var settings: ScreenPrivacySettings
     @ObservedObject var content: PrivacyOverlayContentModel
     let displaysInformation: Bool
@@ -31,20 +32,20 @@ struct PrivacyOverlayView: View {
             Spacer()
 
             if settings.showsTime {
-                Text(date, format: settings.showsSeconds
-                     ? .dateTime.hour().minute().second()
-                     : .dateTime.hour().minute())
+                Text(date.formatted(settings.showsSeconds
+                     ? .dateTime.hour().minute().second().locale(localization.locale)
+                     : .dateTime.hour().minute().locale(localization.locale)))
                     .font(.system(size: 76, weight: .light, design: .rounded))
                     .monospacedDigit()
             }
 
             if settings.showsDate {
-                Text(date, format: .dateTime.year().month(.wide).day().weekday(.wide))
+                Text(date.formatted(.dateTime.year().month(.wide).day().weekday(.wide).locale(localization.locale)))
                     .font(.title2.weight(.medium))
             }
 
             if settings.showsWeather {
-                Label(content.weatherText ?? "天气暂不可用", systemImage: content.weatherSymbol)
+                Label(content.weatherText ?? L10n.text("天气暂不可用"), systemImage: content.weatherSymbol)
                     .font(.headline)
                     .foregroundStyle(.secondary)
             }
@@ -59,7 +60,7 @@ struct PrivacyOverlayView: View {
             }
 
             if let message = content.message {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
+                Label(L10n.text(message), systemImage: "exclamationmark.triangle.fill")
                     .font(.callout)
                     .foregroundStyle(.orange)
                     .padding(.top, 6)
@@ -67,14 +68,14 @@ struct PrivacyOverlayView: View {
 
             Spacer()
 
-            Button("暂停屏幕保护") {
+            Button(L10n.text("暂停屏幕保护")) {
                 onPause()
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .keyboardShortcut(.escape, modifiers: [])
 
-            Text("按 Esc 也可以恢复屏幕")
+            Text(L10n.text("按 Esc 也可以恢复屏幕"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 36)

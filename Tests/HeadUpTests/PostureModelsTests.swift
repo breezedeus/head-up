@@ -25,7 +25,7 @@ struct PostureModelsTests {
     }
 
     @Test func unavailableStatusDoesNotReadAsDisconnected() {
-        #expect(PostureStatus.unavailable.title == "等待头部追踪")
+        #expect(PostureStatus.unavailable.title == L10n.text("等待头部追踪"))
         #expect(PostureStatus.unavailable.menuBarIconName != PostureStatus.disconnected.menuBarIconName)
     }
 

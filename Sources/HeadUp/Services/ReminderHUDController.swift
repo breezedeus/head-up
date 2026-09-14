@@ -25,7 +25,7 @@ final class ReminderHUDController {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 104),
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 120),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -50,6 +50,7 @@ final class ReminderHUDController {
 }
 
 private struct ReminderHUDView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let angle: Double
 
     var body: some View {
@@ -61,19 +62,19 @@ private struct ReminderHUDView: View {
                 .background(.orange.opacity(0.14), in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("抬头一下")
+                Text(L10n.text("抬头一下"))
                     .font(.title3.weight(.semibold))
-                Text("已持续低头 · 当前约 \(Int(angle.rounded()))°")
+                Text(L10n.text("已持续低头 · 当前约 {0}°", "\(Int(angle.rounded()))"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text("下巴轻轻抬一点，肩膀放松")
+                Text(L10n.text("下巴轻轻抬一点，肩膀放松"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
         .padding(16)
-        .frame(width: 340, height: 104)
+        .frame(width: 420, height: 120)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)

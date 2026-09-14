@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 @MainActor
 final class ScreenPrivacyStore: ObservableObject {
@@ -8,8 +9,42 @@ final class ScreenPrivacyStore: ObservableObject {
     @Published private(set) var isCapturingCalibration = false
     @Published private(set) var horizontalOffset = 0.0
     @Published private(set) var verticalOffset = 0.0
-    @Published private(set) var calibrationError: String?
+    @Published private var calibrationErrorKey: String?
+    var calibrationError: String? { calibrationErrorKey.map { L10n.text($0) } }
     @Published private(set) var isPreviewing = false
+
+    @Published private(set) var displayProfiles: [ScreenPrivacyDisplayProfile] = []
+    @Published private(set) var calibrationDisplays: [CalibrationDisplay] = []
+    @Published private(set) var selectedDisplayID: String?
+    @Published private(set) var captureCountdown = 0
+    @Published private(set) var completedDisplayIDs: Set<String> = []
+    @Published private(set) var needsSessionCalibration = false
+    private var driftEstimator = ScreenPrivacyDriftEstimator()
+    private var captureTask: Task<Void, Never>?
+    private var displayObserver: NSObjectProtocol?
+    private var languageObserver: NSObjectProtocol?
+    private let displaysProvider: @MainActor () -> [CalibrationDisplay]
+    private var draftProfiles: [ScreenPrivacyDisplayProfile] = []
+
+    struct CalibrationDisplay: Identifiable {
+        let id: String
+        let name: String
+    }
+
+    static func connectedDisplays() -> [CalibrationDisplay] {
+        NSScreen.screens.compactMap { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
+            let displayID = CGDirectDisplayID(number.uint32Value)
+            let id: String
+            if let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue() {
+                id = CFUUIDCreateString(nil, uuid) as String
+            } else { id = number.stringValue }
+            return CalibrationDisplay(id: id, name: screen.localizedName)
+        }
+    }
+
+    var hasPerDisplayCalibration: Bool { !displayProfiles.isEmpty }
+    var canCapture: Bool { isTrackingAvailable }
 
     let settings: ScreenPrivacySettings
     let overlayContent = PrivacyOverlayContentModel()
@@ -19,7 +54,7 @@ final class ScreenPrivacyStore: ObservableObject {
     private let weatherService = WeatherService()
     private let overlayController: PrivacyOverlayController
     private var profile: ScreenPrivacyCalibrationProfile?
-    private var calibrationStartedAt: Date?
+    private var calibrationStartedAt: TimeInterval?
     private var calibrationSamples: [(yaw: Double, pitch: Double)] = []
     private var capturedStages: [ScreenPrivacyCalibrationStage: (yaw: Double, pitch: Double)] = [:]
     private var hasArmedOnce = false
@@ -30,15 +65,47 @@ final class ScreenPrivacyStore: ObservableObject {
     private var lastWeatherCity: String?
     private var lastWeatherRefresh: Date?
 
-    init(settings: ScreenPrivacySettings) {
+    init(settings: ScreenPrivacySettings, displaysProvider: @escaping @MainActor () -> [CalibrationDisplay] = { ScreenPrivacyStore.connectedDisplays() }) {
+        self.displaysProvider = displaysProvider
         self.settings = settings
         overlayController = PrivacyOverlayController(settings: settings, content: overlayContent)
+        displayProfiles = settings.displayProfiles
         profile = settings.calibrationProfile
-        needsAutomaticRecentering = profile != nil
+        if !displayProfiles.isEmpty {
+            profile = displayProfiles.first?.calibration
+            needsSessionCalibration = true
+        }
+        needsAutomaticRecentering = profile != nil && displayProfiles.isEmpty
         hasArmedOnce = profile != nil
         status = settings.isEnabled
             ? (profile == nil ? .needsCalibration : .trackingLost)
             : .disabled
+        languageObserver = NotificationCenter.default.addObserver(forName: .headUpLanguageChanged, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshWeather(force: true) }
+        }
+        displayObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.displayLayoutChanged() }
+        }
+    }
+
+    deinit {
+        if let displayObserver { NotificationCenter.default.removeObserver(displayObserver) }
+        if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) }
+        captureTask?.cancel()
+    }
+
+    private func displayLayoutChanged() {
+        guard !displayProfiles.isEmpty || calibrationStage != .idle else { return }
+        cancelCalibration()
+        needsSessionCalibration = true
+        driftEstimator.reset()
+        calibrationErrorKey = "显示器布局已变化，请重新校准屏幕"
+        if settings.isEnabled, !isPaused {
+            status = .needsCalibration
+            if settings.keepCoveredOnTrackingLoss { showOverlay(message: "显示器布局已变化，请重新校准") }
+        }
     }
 
     var requiresMotionUpdates: Bool {
@@ -47,24 +114,25 @@ final class ScreenPrivacyStore: ObservableObject {
 
     var statusDetail: String {
         switch status {
-        case .disabled: return "开启后，头部离开设定工作区会自动遮挡全部屏幕"
-        case .needsCalibration: return "请先设置左右、上下四个工作边界"
-        case .calibrating: return "保持当前方向，正在采集头部角度"
-        case .watching: return "正在监测左右转头、仰头和低头"
-        case .coveringSoon: return "回到工作区可取消遮挡"
-        case .covered: return "回到工作区，或按 Esc 暂停保护"
-        case .revealingSoon: return "保持正视即可恢复"
-        case .paused: return "从菜单栏继续后重新布防"
-        case .trackingLost: return "戴回耳机后自动恢复，不需要重新校准"
+        case .disabled: return L10n.text("开启后，头部离开设定工作区会自动遮挡全部屏幕")
+        case .needsCalibration: return needsSessionCalibration ? L10n.text("请重新校准屏幕方向，恢复本次追踪") : L10n.text("在这里逐屏设置中心与四个边界")
+        case .calibrating: return L10n.text("保持当前方向，正在采集头部角度")
+        case .watching: return L10n.text("正在监测左右转头、仰头和低头")
+        case .coveringSoon: return L10n.text("回到工作区可取消遮挡")
+        case .covered: return L10n.text("回到工作区，或按 Esc 暂停保护")
+        case .revealingSoon: return L10n.text("保持正视即可恢复")
+        case .paused: return L10n.text("从菜单栏继续后重新布防")
+        case .trackingLost: return L10n.text("追踪恢复后，请在菜单栏确认并校准屏幕方向")
         }
     }
 
     func setEnabled(_ enabled: Bool) {
+        if calibrationStage != .idle { cancelCalibration() }
         settings.isEnabled = enabled
         isPaused = false
         analyzer.reset()
         if enabled {
-            status = profile == nil ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
+            status = profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
         } else {
             status = .disabled
             stopPreviewOrOverlay()
@@ -73,8 +141,19 @@ final class ScreenPrivacyStore: ObservableObject {
     }
 
     func startCalibration() {
+        captureTask?.cancel()
+        captureCountdown = 0
+        calibrationDisplays = displaysProvider()
+        guard !calibrationDisplays.isEmpty else {
+            calibrationErrorKey = "未找到可校准的显示器"
+            return
+        }
+        selectedDisplayID = calibrationDisplays.first?.id
+        completedDisplayIDs.removeAll()
+        draftProfiles.removeAll()
+        driftEstimator.reset()
         needsAutomaticRecentering = false
-        calibrationError = nil
+        calibrationErrorKey = nil
         capturedStages.removeAll()
         calibrationSamples.removeAll()
         calibrationStartedAt = nil
@@ -87,20 +166,27 @@ final class ScreenPrivacyStore: ObservableObject {
     }
 
     func cancelCalibration() {
+        captureTask?.cancel()
+        captureTask = nil
+        captureCountdown = 0
         calibrationStage = .idle
         calibrationSamples.removeAll()
         capturedStages.removeAll()
         calibrationStartedAt = nil
         calibrationProgress = 0
         isCapturingCalibration = false
-        status = settings.isEnabled ? (profile == nil ? .needsCalibration : .watching) : .disabled
+        status = settings.isEnabled ? (isPaused ? .paused : (profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost))) : .disabled
+        analyzer.reset()
+        if settings.isEnabled, !isPaused, needsSessionCalibration, settings.keepCoveredOnTrackingLoss {
+            showOverlay(message: "请校准屏幕方向后恢复保护")
+        }
         onMotionRequirementChanged?()
     }
 
     func togglePause() {
         if isPaused {
             isPaused = false
-            status = profile == nil ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
+            status = profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
             if status == .trackingLost, hasArmedOnce, settings.keepCoveredOnTrackingLoss {
                 showOverlay(message: "AirPods 连接中断")
             }
@@ -125,12 +211,48 @@ final class ScreenPrivacyStore: ObservableObject {
         })
     }
 
-    func beginCalibrationCapture() {
-        guard calibrationStage != .idle, !isCapturingCalibration else { return }
-        calibrationSamples.removeAll(keepingCapacity: true)
+    func selectCalibrationDisplay(_ id: String) {
+        guard calibrationDisplays.contains(where: { $0.id == id }), !isCapturingCalibration, captureCountdown == 0 else { return }
+        selectedDisplayID = id
+        completedDisplayIDs.remove(id)
+        capturedStages.removeAll()
+        calibrationSamples.removeAll()
         calibrationStartedAt = nil
         calibrationProgress = 0
-        isCapturingCalibration = true
+        calibrationStage = .center
+        status = .calibrating(.center)
+        calibrationErrorKey = nil
+    }
+
+    func previousCalibrationStep() {
+        guard !isCapturingCalibration, captureCountdown == 0 else { return }
+        let steps: [ScreenPrivacyCalibrationStage] = [.center, .left, .right, .up, .down]
+        guard let index = steps.firstIndex(of: calibrationStage), index > 0 else { return }
+        calibrationStage = steps[index - 1]
+        for stage in steps[(index - 1)...] { capturedStages.removeValue(forKey: stage) }
+        calibrationProgress = 0
+        calibrationErrorKey = nil
+        status = .calibrating(calibrationStage)
+    }
+
+    func beginCalibrationCapture(delaySeconds: Int = 3) {
+        guard calibrationStage != .idle, !isCapturingCalibration, captureCountdown == 0, canCapture else { return }
+        calibrationErrorKey = nil
+        captureCountdown = max(0, delaySeconds)
+        captureTask = Task { [weak self] in
+            for remaining in stride(from: max(0, delaySeconds), through: 1, by: -1) {
+                guard let self, !Task.isCancelled else { return }
+                self.captureCountdown = remaining
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            }
+            guard let self, !Task.isCancelled, self.canCapture else { return }
+            self.captureCountdown = 0
+            self.calibrationSamples.removeAll(keepingCapacity: true)
+            self.calibrationStartedAt = nil
+            self.calibrationProgress = 0
+            self.isCapturingCalibration = true
+            NSSound(named: "Tink")?.play()
+        }
     }
 
     func stopPreviewOrOverlay() {
@@ -141,7 +263,8 @@ final class ScreenPrivacyStore: ObservableObject {
     func refreshWeather(force: Bool = false) {
         weatherTask?.cancel()
         guard settings.showsWeather else {
-            overlayContent.weatherText = nil
+            overlayContent.weather = nil
+            overlayContent.weatherMessageKey = nil
             return
         }
         let city = settings.weatherCity
@@ -152,27 +275,30 @@ final class ScreenPrivacyStore: ObservableObject {
            overlayContent.weatherText != nil {
             return
         }
-        overlayContent.weatherText = "正在获取天气…"
+        overlayContent.weather = nil
+        overlayContent.weatherMessageKey = "正在获取天气…"
         weatherTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let weather = try await weatherService.currentWeather(for: city)
                 guard !Task.isCancelled else { return }
-                overlayContent.weatherText = weather.displayText
+                overlayContent.weather = weather
+                overlayContent.weatherMessageKey = nil
                 overlayContent.weatherSymbol = weather.symbolName
                 lastWeatherCity = city
                 lastWeatherRefresh = Date()
             } catch {
                 guard !Task.isCancelled else { return }
-                overlayContent.weatherText = error.localizedDescription
+                overlayContent.weatherMessageKey = (error as? WeatherServiceError)?.localizationKey ?? "天气服务暂时不可用"
                 overlayContent.weatherSymbol = "exclamationmark.icloud.fill"
             }
         }
     }
 
     func handle(_ sample: MotionSample) {
+        guard sample.yaw.isFinite, sample.pitch.isFinite, sample.sensorTimestamp.isFinite else { return }
         isTrackingAvailable = true
-        if needsAutomaticRecentering, let storedProfile = profile {
+        if needsAutomaticRecentering, displayProfiles.isEmpty, let storedProfile = profile {
             profile = storedProfile.recentered(yaw: sample.yaw, pitch: sample.pitch)
             needsAutomaticRecentering = false
             analyzer.reset()
@@ -189,7 +315,28 @@ final class ScreenPrivacyStore: ObservableObject {
             handleCalibration(sample)
             return
         }
-        guard settings.isEnabled, !isPaused, let storedProfile = profile else { return }
+        guard settings.isEnabled, !isPaused else { return }
+        if !displayProfiles.isEmpty {
+            guard !needsSessionCalibration else {
+                if status != .needsCalibration {
+                    status = .needsCalibration
+                    if settings.keepCoveredOnTrackingLoss { showOverlay(message: "请校准屏幕方向后恢复保护") }
+                }
+                return
+            }
+            let connected = Set(displaysProvider().map(\.id))
+            let active = displayProfiles.filter { connected.contains($0.id) }
+            let reading = analyzer.process(
+                yaw: sample.yaw, pitch: sample.pitch, at: sample.sensorTimestamp,
+                profiles: active.map { driftEstimator.corrected($0) }, thresholds: settings.thresholds
+            )
+            driftEstimator.process(sample, displays: active, learningAllowed: reading.phase == .watching)
+            horizontalOffset = reading.horizontalOffset
+            verticalOffset = reading.verticalOffset
+            apply(reading.phase)
+            return
+        }
+        guard let storedProfile = profile else { return }
 
         var effectiveProfile = storedProfile
         effectiveProfile.leftAngle = settings.leftAngle
@@ -212,10 +359,12 @@ final class ScreenPrivacyStore: ObservableObject {
         isTrackingAvailable = available
         if !available, calibrationStage != .idle {
             cancelCalibration()
-            calibrationError = "头部追踪已中断，请连接 AirPods 后重新校准"
+            calibrationErrorKey = "头部追踪已中断，请连接 AirPods 后重新校准"
         }
         if !available, profile != nil {
-            needsAutomaticRecentering = true
+            needsAutomaticRecentering = displayProfiles.isEmpty
+            if !displayProfiles.isEmpty { needsSessionCalibration = true }
+            driftEstimator.reset()
         }
         guard settings.isEnabled, !isPaused else { return }
         if available {
@@ -224,7 +373,7 @@ final class ScreenPrivacyStore: ObservableObject {
             analyzer.reset(covered: hasArmedOnce && settings.keepCoveredOnTrackingLoss)
             status = .trackingLost
             if hasArmedOnce, settings.keepCoveredOnTrackingLoss {
-                showOverlay(message: "AirPods 追踪暂时中断，戴回后自动恢复")
+                showOverlay(message: "AirPods 追踪暂时中断，请恢复连接后校准")
             } else {
                 overlayController.hide()
             }
@@ -233,14 +382,26 @@ final class ScreenPrivacyStore: ObservableObject {
 
     private func handleCalibration(_ sample: MotionSample) {
         guard isCapturingCalibration else { return }
-        if calibrationStartedAt == nil { calibrationStartedAt = sample.timestamp }
+        if calibrationStartedAt == nil { calibrationStartedAt = sample.sensorTimestamp }
         guard let startedAt = calibrationStartedAt else { return }
         calibrationSamples.append((sample.yaw, sample.pitch))
-        let elapsed = sample.timestamp.timeIntervalSince(startedAt)
-        calibrationProgress = min(1, elapsed / 1.25)
-        guard elapsed >= 1.25, calibrationSamples.count >= 5 else { return }
+        let elapsed = sample.sensorTimestamp - startedAt
+        calibrationProgress = min(1, elapsed / 2)
+        guard elapsed >= 2, calibrationSamples.count >= 5 else { return }
 
-        capturedStages[calibrationStage] = averaged(calibrationSamples)
+        let mean = averaged(calibrationSamples)
+        let stable = calibrationSamples.allSatisfy {
+            abs(ScreenPrivacyCalibrationProfile.normalizedAngle($0.yaw - mean.yaw)) <= 2
+                && abs($0.pitch - mean.pitch) <= 2
+        }
+        guard stable else {
+            isCapturingCalibration = false
+            calibrationErrorKey = "头部移动较多，请保持方向后重新采集"
+            calibrationProgress = 0
+            return
+        }
+        capturedStages[calibrationStage] = mean
+        NSSound(named: "Pop")?.play()
         isCapturingCalibration = false
         if calibrationStage == .down {
             finishCalibration()
@@ -254,15 +415,6 @@ final class ScreenPrivacyStore: ObservableObject {
     }
 
     private func finishCalibration() {
-        defer {
-            calibrationStage = .idle
-            calibrationStartedAt = nil
-            calibrationSamples.removeAll()
-            capturedStages.removeAll()
-            calibrationProgress = 0
-            isCapturingCalibration = false
-            onMotionRequirementChanged?()
-        }
         guard let center = capturedStages[.center],
               let left = capturedStages[.left],
               let right = capturedStages[.right],
@@ -276,11 +428,34 @@ final class ScreenPrivacyStore: ObservableObject {
                 upPitch: up.pitch,
                 downPitch: down.pitch
               ) else {
-            calibrationError = "边界角度太小或方向重复，请重新校准"
-            status = .needsCalibration
+            calibrationErrorKey = "边界角度太小或方向重复，请重新校准"
+            calibrationStage = .center
+            capturedStages.removeAll()
+            calibrationProgress = 0
+            status = .calibrating(.center)
             return
         }
 
+        if let id = selectedDisplayID,
+           let display = calibrationDisplays.first(where: { $0.id == id }) {
+            draftProfiles.removeAll { $0.id == id }
+            draftProfiles.append(ScreenPrivacyDisplayProfile(id: id, name: display.name, calibration: newProfile))
+            completedDisplayIDs.insert(id)
+            if let next = calibrationDisplays.first(where: { !completedDisplayIDs.contains($0.id) }) {
+                selectCalibrationDisplay(next.id)
+                return
+            }
+        }
+        calibrationStage = .idle
+        calibrationStartedAt = nil
+        calibrationSamples.removeAll()
+        capturedStages.removeAll()
+        calibrationProgress = 0
+        isCapturingCalibration = false
+        needsSessionCalibration = false
+        displayProfiles = draftProfiles
+        settings.saveDisplayProfiles(displayProfiles)
+        driftEstimator.reset()
         profile = newProfile
         needsAutomaticRecentering = false
         settings.saveCalibrationProfile(newProfile)
@@ -292,8 +467,9 @@ final class ScreenPrivacyStore: ObservableObject {
         hasArmedOnce = true
         isPaused = false
         analyzer.reset()
-        calibrationError = nil
+        calibrationErrorKey = nil
         status = .watching
+        onMotionRequirementChanged?()
     }
 
     private func averaged(_ samples: [(yaw: Double, pitch: Double)]) -> (yaw: Double, pitch: Double) {

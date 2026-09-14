@@ -8,8 +8,8 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
         var errorDescription: String? {
             switch self {
-            case .motionUnavailable: return "当前没有可用的 AirPods 头部运动数据"
-            case .permissionDenied: return "运动与健身权限已关闭"
+            case .motionUnavailable: return L10n.text("当前没有可用的 AirPods 头部运动数据")
+            case .permissionDenied: return L10n.text("运动与健身权限已关闭")
             }
         }
     }

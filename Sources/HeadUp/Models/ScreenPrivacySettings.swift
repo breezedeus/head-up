@@ -83,6 +83,16 @@ final class ScreenPrivacySettings: ObservableObject {
         defaults.set(data, forKey: Key.calibrationProfile)
     }
 
+    var displayProfiles: [ScreenPrivacyDisplayProfile] {
+        guard let data = defaults.data(forKey: "privacy.displayProfiles") else { return [] }
+        return (try? JSONDecoder().decode([ScreenPrivacyDisplayProfile].self, from: data)) ?? []
+    }
+
+    func saveDisplayProfiles(_ profiles: [ScreenPrivacyDisplayProfile]) {
+        guard let data = try? JSONEncoder().encode(profiles) else { return }
+        defaults.set(data, forKey: "privacy.displayProfiles")
+    }
+
     var thresholds: ScreenPrivacyThresholds {
         ScreenPrivacyThresholds(hideDelay: hideDelay, revealDelay: revealDelay, hysteresis: 3)
     }

@@ -40,6 +40,12 @@ if [[ -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
   cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_CONTENTS/Resources/HeadUp.icns"
 fi
 
+# System-facing app names and permission descriptions follow the system language.
+for app_language in en zh-Hans; do
+  mkdir -p "$APP_CONTENTS/Resources"/"$app_language.lproj"
+  cp "$ROOT_DIR/Sources/HeadUp/Resources/$app_language.lproj/InfoPlist.strings" "$APP_CONTENTS/Resources"/"$app_language.lproj/InfoPlist.strings"
+done
+
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -50,15 +56,16 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
-  <string>抬头</string>
+  <string>HeadUp</string>
   <key>CFBundleDisplayName</key>
-  <string>抬头</string>
+  <string>HeadUp</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
   <key>CFBundleDevelopmentRegion</key>
-  <string>zh_CN</string>
+  <string>en</string>
   <key>CFBundleShortVersionString</key>
   <string>$VERSION</string>
   <key>CFBundleVersion</key>
@@ -72,7 +79,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>LSUIElement</key>
   <true/>
   <key>NSMotionUsageDescription</key>
-  <string>抬头需要读取 AirPods 的头部运动数据，用于姿态提醒和离开工作区时保护屏幕。</string>
+  <string>HeadUp uses AirPods head motion data for posture reminders and to cover screens when you look away.</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>

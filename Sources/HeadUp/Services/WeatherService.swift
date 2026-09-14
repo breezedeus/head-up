@@ -4,11 +4,12 @@ struct WeatherSnapshot: Equatable {
     let locationName: String
     let temperature: Double
     let unit: String
-    let description: String
+    let weatherCode: Int
+    var description: String { WeatherService.description(for: weatherCode) }
     let symbolName: String
 
     var displayText: String {
-        "\(locationName)  \(temperature.formatted(.number.precision(.fractionLength(0))))\(unit)  \(description)"
+        "\(locationName)  \(temperature.formatted(.number.precision(.fractionLength(0)).locale(L10n.locale)))\(unit)  \(description)"
     }
 }
 
@@ -17,7 +18,9 @@ enum WeatherServiceError: LocalizedError {
     case cityNotFound
     case invalidResponse
 
-    var errorDescription: String? {
+    var errorDescription: String? { L10n.text(localizationKey) }
+
+    var localizationKey: String {
         switch self {
         case .invalidCity: return "请填写城市"
         case .cityNotFound: return "没有找到这个城市"
@@ -35,7 +38,7 @@ struct WeatherService {
         geocoding.queryItems = [
             URLQueryItem(name: "name", value: query),
             URLQueryItem(name: "count", value: "1"),
-            URLQueryItem(name: "language", value: "zh"),
+            URLQueryItem(name: "language", value: L10n.language == .simplifiedChinese ? "zh" : "en"),
             URLQueryItem(name: "format", value: "json")
         ]
         guard let geocodingURL = geocoding.url else { throw WeatherServiceError.invalidCity }
@@ -61,31 +64,31 @@ struct WeatherService {
             locationName: location.name,
             temperature: decoded.current.temperature,
             unit: decoded.currentUnits.temperature,
-            description: Self.description(for: decoded.current.weatherCode),
+            weatherCode: decoded.current.weatherCode,
             symbolName: Self.symbolName(for: decoded.current.weatherCode, isDay: decoded.current.isDay == 1)
         )
     }
 
-    static func description(for code: Int) -> String {
+    static func description(for code: Int, language: AppLanguage = L10n.language) -> String {
         switch code {
-        case 0: return "晴"
-        case 1: return "大部晴朗"
-        case 2: return "多云"
-        case 3: return "阴"
-        case 45, 48: return "雾"
-        case 51, 53, 55: return "毛毛雨"
-        case 56, 57: return "冻雨"
-        case 61: return "小雨"
-        case 63: return "中雨"
-        case 65: return "大雨"
-        case 66, 67: return "冻雨"
-        case 71: return "小雪"
-        case 73: return "中雪"
-        case 75, 77: return "大雪"
-        case 80, 81, 82: return "阵雨"
-        case 85, 86: return "阵雪"
-        case 95, 96, 99: return "雷暴"
-        default: return "天气变化"
+        case 0: return L10n.format("晴", language: language)
+        case 1: return L10n.format("大部晴朗", language: language)
+        case 2: return L10n.format("多云", language: language)
+        case 3: return L10n.format("阴", language: language)
+        case 45, 48: return L10n.format("雾", language: language)
+        case 51, 53, 55: return L10n.format("毛毛雨", language: language)
+        case 56, 57: return L10n.format("冻雨", language: language)
+        case 61: return L10n.format("小雨", language: language)
+        case 63: return L10n.format("中雨", language: language)
+        case 65: return L10n.format("大雨", language: language)
+        case 66, 67: return L10n.format("冻雨", language: language)
+        case 71: return L10n.format("小雪", language: language)
+        case 73: return L10n.format("中雪", language: language)
+        case 75, 77: return L10n.format("大雪", language: language)
+        case 80, 81, 82: return L10n.format("阵雨", language: language)
+        case 85, 86: return L10n.format("阵雪", language: language)
+        case 95, 96, 99: return L10n.format("雷暴", language: language)
+        default: return L10n.format("天气变化", language: language)
         }
     }
 

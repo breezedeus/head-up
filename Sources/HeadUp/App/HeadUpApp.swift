@@ -18,14 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct HeadUpApp: App {
+    @ObservedObject private var localization = AppLocalization.shared
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = PostureStore()
     var body: some Scene {
         MenuBarExtra {
             DashboardView(store: store)
+                .environment(\.locale, localization.locale)
         } label: {
             MenuBarStatusIcon(status: store.status)
-                .accessibilityLabel("抬头：\(store.status.title)")
+                .accessibilityLabel(L10n.text("抬头：{0}", "\(store.status.title)"))
                 .background {
                     if ProcessInfo.processInfo.environment["HEADUP_SETTINGS_SNAPSHOT"] == "1" {
                         SettingsSnapshotLauncher()
@@ -34,14 +36,16 @@ struct HeadUpApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("抬头设置", id: HeadUpWindowID.settings) {
+        Window(L10n.text("抬头设置"), id: HeadUpWindowID.settings) {
             SettingsView(store: store)
+                .environment(\.locale, localization.locale)
         }
         .defaultSize(width: 570, height: 540)
         .windowResizability(.contentSize)
 
-        Window("抬头使用指南", id: HeadUpWindowID.guide) {
+        Window(L10n.text("抬头使用指南"), id: HeadUpWindowID.guide) {
             GettingStartedView()
+                .environment(\.locale, localization.locale)
         }
         .defaultSize(width: 540, height: 520)
         .windowResizability(.contentSize)

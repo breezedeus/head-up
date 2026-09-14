@@ -1,0 +1,3 @@
+"CFBundleName" = "HeadUp";
+"CFBundleDisplayName" = "HeadUp";
+"NSMotionUsageDescription" = "HeadUp uses AirPods head motion data for posture reminders and to cover your screens when you look away from your work area.";

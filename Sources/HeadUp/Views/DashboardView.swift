@@ -2,8 +2,15 @@ import AppKit
 import SwiftUI
 
 struct DashboardView: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @Environment(\.openWindow) private var openWindow
     @ObservedObject var store: PostureStore
+    @ObservedObject private var privacyStore: ScreenPrivacyStore
+
+    init(store: PostureStore) {
+        self.store = store
+        self.privacyStore = store.privacyStore
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,7 +24,7 @@ struct DashboardView: View {
     private var header: some View {
         VStack(spacing: 11) {
             HStack {
-                Text("抬头")
+                Text(L10n.text("抬头"))
                     .font(.title2.weight(.semibold))
                 Spacer()
                 Button {
@@ -26,31 +33,31 @@ struct DashboardView: View {
                     Image(systemName: "gearshape")
                 }
                 .buttonStyle(.plain)
-                .help("设置")
-                .accessibilityLabel("打开设置")
+                .help(L10n.text("设置"))
+                .accessibilityLabel(L10n.text("打开设置"))
 
                 Menu {
-                    Button("测试提醒") { store.testReminder() }
-                    Button(store.privacySettings.isEnabled ? "关闭屏幕保护" : "开启屏幕保护") {
+                    Button(L10n.text("测试提醒")) { store.testReminder() }
+                    Button(store.privacySettings.isEnabled ? L10n.text("关闭屏幕保护") : L10n.text("开启屏幕保护")) {
                         store.setScreenPrivacyEnabled(!store.privacySettings.isEnabled)
                     }
                     if store.privacySettings.isEnabled {
-                        Button(store.privacyStore.status == .paused ? "继续屏幕保护" : "暂停屏幕保护") {
+                        Button(store.privacyStore.status == .paused ? L10n.text("继续屏幕保护") : L10n.text("暂停屏幕保护")) {
                             store.privacyStore.togglePause()
                         }
                     }
-                    Button("使用指南") {
+                    Button(L10n.text("使用指南")) {
                         HeadUpWindowPresenter.present(id: HeadUpWindowID.guide, using: openWindow)
                     }
-                    Button("查看更新") { NSWorkspace.shared.open(HeadUpLinks.releases) }
+                    Button(L10n.text("查看更新")) { NSWorkspace.shared.open(HeadUpLinks.releases) }
                     Divider()
-                    Button("退出抬头") { NSApplication.shared.terminate(nil) }
+                    Button(L10n.text("退出抬头")) { NSApplication.shared.terminate(nil) }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .accessibilityLabel("更多操作")
+                .accessibilityLabel(L10n.text("更多操作"))
             }
 
             HStack(spacing: 8) {
@@ -70,7 +77,26 @@ struct DashboardView: View {
 
     @ViewBuilder
     private var content: some View {
-        if store.calibrationStage != .idle {
+        if privacyStore.calibrationStage != .idle {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    PostureGauge(angle: store.angle, status: store.status,
+                                 duration: store.sustainedDuration, threshold: store.settings.threshold)
+                        .scaleEffect(0.55)
+                        .frame(width: 100, height: 65)
+                    Text(statusHeadline).font(.headline).foregroundStyle(statusColor)
+                    Spacer()
+                    Button(L10n.text("姿态校准")) {
+                        privacyStore.cancelCalibration()
+                        store.startCalibration()
+                    }
+                    .controlSize(.small)
+                    .disabled(!store.isConnected || privacyStore.isCapturingCalibration || privacyStore.captureCountdown > 0)
+                }.padding(16)
+                Divider()
+                ScreenPrivacyCalibrationView(store: privacyStore)
+            }
+        } else if store.calibrationStage != .idle {
             calibrationView
                 .padding(20)
         } else if store.status == .permissionDenied {
@@ -103,7 +129,7 @@ struct DashboardView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("提醒阈值 \(Int(store.settings.threshold))°")
+                    Text(L10n.text("提醒阈值 {0}°", "\(Int(store.settings.threshold))"))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -119,9 +145,7 @@ struct DashboardView: View {
 
             Divider()
 
-            ScreenPrivacyDashboardCard(store: store.privacyStore) {
-                HeadUpWindowPresenter.present(id: HeadUpWindowID.settings, using: openWindow)
-            }
+            ScreenPrivacyDashboardCard(store: store.privacyStore)
             .padding(16)
 
             Divider()
@@ -135,11 +159,11 @@ struct DashboardView: View {
                 .padding(16)
 
             HStack {
-                Text("姿态数据仅保存在本机")
+                Text(L10n.text("姿态数据仅保存在本机"))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                 Spacer()
-                Button("设置…") {
+                Button(L10n.text("设置…")) {
                     HeadUpWindowPresenter.present(id: HeadUpWindowID.settings, using: openWindow)
                 }
                 .buttonStyle(.plain)
@@ -156,7 +180,7 @@ struct DashboardView: View {
             Button {
                 store.startCalibration()
             } label: {
-                Label("重新校准", systemImage: "scope")
+                Label(L10n.text("姿态校准"), systemImage: "scope")
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
             }
@@ -169,7 +193,7 @@ struct DashboardView: View {
                 store.isMonitoring.toggle()
             } label: {
                 Label(
-                    store.isMonitoring ? "暂停" : "继续",
+                    store.isMonitoring ? L10n.text("暂停") : L10n.text("继续"),
                     systemImage: store.isMonitoring ? "pause.fill" : "play.fill"
                 )
                 .frame(maxWidth: .infinity)
@@ -187,22 +211,22 @@ struct DashboardView: View {
 
     private var todaySummary: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("今日")
+            Text(L10n.text("今日"))
                 .font(.subheadline.weight(.medium))
 
             HStack {
                 summaryItem(
                     icon: "checkmark.circle.fill",
                     color: .green,
-                    title: "良好姿势",
+                    title: L10n.text("良好姿势"),
                     value: store.goodPosturePercentage.map { "\($0)%" } ?? "—"
                 )
                 Divider().frame(height: 38)
                 summaryItem(
                     icon: "bell.fill",
                     color: .orange,
-                    title: "提醒触发",
-                    value: "\(store.remindersToday) 次"
+                    title: L10n.text("提醒触发"),
+                    value: L10n.text("{0} 次", "\(store.remindersToday)")
                 )
             }
         }
@@ -234,7 +258,7 @@ struct DashboardView: View {
                 .symbolEffect(.pulse)
             VStack(spacing: 5) {
                 Text(store.calibrationStage.instruction).font(.headline)
-                Text(store.calibrationStage == .upright ? "保持 2 秒，不要移动" : "像平时看键盘那样低头")
+                Text(store.calibrationStage == .upright ? L10n.text("保持 2 秒，不要移动") : L10n.text("像平时看键盘那样低头"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -249,10 +273,10 @@ struct DashboardView: View {
             Image(systemName: "figure.walk.motion")
                 .font(.system(size: 38))
                 .foregroundStyle(.orange)
-            Text("需要运动与健身权限").font(.headline)
+            Text(L10n.text("需要运动与健身权限")).font(.headline)
             HStack {
-                Button("打开系统设置") { store.openMotionPrivacySettings() }
-                Button("重新检测") { store.retryMotionAccess() }
+                Button(L10n.text("打开系统设置")) { store.openMotionPrivacySettings() }
+                Button(L10n.text("重新检测")) { store.retryMotionAccess() }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -261,9 +285,9 @@ struct DashboardView: View {
 
     private var statusHeadline: String {
         switch store.status {
-        case .warning: return "下巴轻轻抬一点"
-        case .caution: return "检测到低头"
-        case .good: return "姿势良好"
+        case .warning: return L10n.text("下巴轻轻抬一点")
+        case .caution: return L10n.text("检测到低头")
+        case .good: return L10n.text("姿势良好")
         default: return store.status.title
         }
     }
@@ -271,24 +295,24 @@ struct DashboardView: View {
     private var statusDetail: String {
         switch store.status {
         case .warning:
-            return "已持续 \(HeadUpFormatters.duration(store.sustainedDuration))"
+            return L10n.text("已持续 {0}", "\(HeadUpFormatters.duration(store.sustainedDuration))")
         case .caution:
             let remaining = max(0, store.settings.reminderDelay - store.sustainedDuration)
-            return "再持续 \(Int(remaining.rounded(.up))) 秒将提醒"
+            return L10n.text("再持续 {0} 秒将提醒", "\(Int(remaining.rounded(.up)))")
         case .good:
-            return "保持得不错，肩膀也放松一点"
+            return L10n.text("保持得不错，肩膀也放松一点")
         case .paused:
-            return "继续后恢复姿态记录"
+            return L10n.text("继续后恢复姿态记录")
         case .moving:
-            return "行走或跑步时会自动暂停姿态提醒"
+            return L10n.text("行走或跑步时会自动暂停姿态提醒")
         case .disconnected:
-            return "戴上并连接支持头部追踪的 AirPods"
+            return L10n.text("戴上并连接支持头部追踪的 AirPods")
         case .unavailable:
-            return "AirPods 仍已连接；正在等待头部运动数据恢复"
+            return L10n.text("AirPods 仍已连接；正在等待头部运动数据恢复")
         case .needsCalibration:
-            return store.calibrationError ?? "完成校准后开始监测"
+            return store.calibrationError ?? L10n.text("完成校准后开始监测")
         default:
-            return "完成校准后开始监测"
+            return L10n.text("完成校准后开始监测")
         }
     }
 
@@ -304,14 +328,13 @@ struct DashboardView: View {
 }
 
 private struct ScreenPrivacyDashboardCard: View {
+    @ObservedObject private var localization = AppLocalization.shared
     @ObservedObject var store: ScreenPrivacyStore
     @ObservedObject var settings: ScreenPrivacySettings
-    let openSettings: () -> Void
 
-    init(store: ScreenPrivacyStore, openSettings: @escaping () -> Void) {
+    init(store: ScreenPrivacyStore) {
         self.store = store
         settings = store.settings
-        self.openSettings = openSettings
     }
 
     var body: some View {
@@ -333,9 +356,15 @@ private struct ScreenPrivacyDashboardCard: View {
 
             Spacer(minLength: 8)
 
-            Button(actionTitle) { performAction() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            VStack(spacing: 6) {
+                Button(actionTitle) { performAction() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                if store.status != .disabled && store.status != .needsCalibration {
+                    Button(L10n.text("校准屏幕")) { store.startCalibration() }
+                        .buttonStyle(.plain).font(.caption2)
+                }
+            }
         }
     }
 
@@ -359,7 +388,7 @@ private struct ScreenPrivacyDashboardCard: View {
     private var detail: String {
         switch store.status {
         case .watching:
-            return "水平 \(signed(store.horizontalOffset))° · 垂直 \(signed(store.verticalOffset))°"
+            return L10n.text("水平 {0}° · 垂直 {1}°", "\(signed(store.horizontalOffset))", "\(signed(store.verticalOffset))")
         default:
             return store.statusDetail
         }
@@ -367,16 +396,16 @@ private struct ScreenPrivacyDashboardCard: View {
 
     private var actionTitle: String {
         switch store.status {
-        case .disabled, .needsCalibration: return "设置"
-        case .paused: return "继续"
-        default: return "暂停"
+        case .disabled, .needsCalibration: return L10n.text("校准屏幕")
+        case .paused: return L10n.text("继续")
+        default: return L10n.text("暂停")
         }
     }
 
     private func performAction() {
         switch store.status {
         case .disabled, .needsCalibration:
-            openSettings()
+            store.startCalibration()
         default:
             store.togglePause()
         }

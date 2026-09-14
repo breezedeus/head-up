@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct MenuBarStatusIcon: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let status: PostureStatus
 
     var body: some View {

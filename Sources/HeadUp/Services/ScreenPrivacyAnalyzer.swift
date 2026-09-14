@@ -21,6 +21,33 @@ final class ScreenPrivacyAnalyzer {
             && offsets.vertical <= max(0, profile.upAngle - thresholds.hysteresis)
             && offsets.vertical >= -max(0, profile.downAngle - thresholds.hysteresis)
 
+        transition(outside: outside, insideRecovery: insideRecovery, at: timestamp, thresholds: thresholds)
+
+        return ScreenPrivacyReading(
+            phase: phase,
+            horizontalOffset: offsets.horizontal,
+            verticalOffset: offsets.vertical
+        )
+    }
+
+    func process(
+        yaw: Double, pitch: Double, at timestamp: TimeInterval,
+        profiles: [ScreenPrivacyCalibrationProfile], thresholds: ScreenPrivacyThresholds
+    ) -> ScreenPrivacyReading {
+        let outside = !profiles.contains { $0.contains(yaw: yaw, pitch: pitch) }
+        let recovery = profiles.contains { $0.contains(yaw: yaw, pitch: pitch, inset: thresholds.hysteresis) }
+        transition(outside: outside, insideRecovery: recovery, at: timestamp, thresholds: thresholds)
+        let nearest = profiles.min {
+            let a = $0.offsets(yaw: yaw, pitch: pitch)
+            let b = $1.offsets(yaw: yaw, pitch: pitch)
+            return hypot(a.horizontal, a.vertical) < hypot(b.horizontal, b.vertical)
+        }
+        let offset = nearest?.offsets(yaw: yaw, pitch: pitch) ?? (horizontal: 0, vertical: 0)
+        return ScreenPrivacyReading(phase: phase, horizontalOffset: offset.horizontal, verticalOffset: offset.vertical)
+    }
+
+    private func transition(outside: Bool, insideRecovery: Bool, at timestamp: TimeInterval,
+                            thresholds: ScreenPrivacyThresholds) {
         switch phase {
         case .watching:
             if outside {
@@ -63,11 +90,6 @@ final class ScreenPrivacyAnalyzer {
             }
         }
 
-        return ScreenPrivacyReading(
-            phase: phase,
-            horizontalOffset: offsets.horizontal,
-            verticalOffset: offsets.vertical
-        )
     }
 
     func reset(covered: Bool = false) {

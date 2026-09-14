@@ -38,7 +38,7 @@ enum HeadUpWindowPresenter {
 
     private static func isWindow(_ window: NSWindow, id: String) -> Bool {
         guard !(window is NSPanel) else { return false }
-        let expectedTitle = id == HeadUpWindowID.settings ? "抬头设置" : "抬头使用指南"
+        let expectedTitle = id == HeadUpWindowID.settings ? L10n.text("抬头设置") : L10n.text("抬头使用指南")
         if window.title == expectedTitle { return true }
         return window.identifier?.rawValue.localizedCaseInsensitiveContains(id) == true
     }

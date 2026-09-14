@@ -23,7 +23,7 @@ enum HeadUpAppInfo {
 
     static var versionDescription: String {
         let dictionary = Bundle.main.infoDictionary
-        let version = dictionary?["CFBundleShortVersionString"] as? String ?? "开发版"
+        let version = dictionary?["CFBundleShortVersionString"] as? String ?? L10n.text("开发版")
         guard let build = dictionary?["CFBundleVersion"] as? String, !build.isEmpty else {
             return version
         }

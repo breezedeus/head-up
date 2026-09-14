@@ -3,9 +3,9 @@ import Testing
 
 struct WeatherServiceTests {
     @Test func mapsCommonWeatherCodesToReadableChinese() {
-        #expect(WeatherService.description(for: 0) == "晴")
-        #expect(WeatherService.description(for: 63) == "中雨")
-        #expect(WeatherService.description(for: 95) == "雷暴")
+        #expect(WeatherService.description(for: 0, language: .simplifiedChinese) == "晴")
+        #expect(WeatherService.description(for: 63, language: .simplifiedChinese) == "中雨")
+        #expect(WeatherService.description(for: 95, language: .simplifiedChinese) == "雷暴")
     }
 
     @Test func mapsWeatherCodesToSystemSymbols() {
