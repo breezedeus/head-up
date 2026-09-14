@@ -21,6 +21,7 @@ final class ScreenPrivacySettings: ObservableObject {
         static let showsCustomText = "privacy.showsCustomText"
         static let infoOnAllDisplays = "privacy.infoOnAllDisplays"
         static let keepCoveredOnTrackingLoss = "privacy.keepCoveredOnTrackingLoss"
+        static let calibrationProfile = "privacy.calibrationProfile"
     }
 
     private let defaults: UserDefaults
@@ -70,6 +71,16 @@ final class ScreenPrivacySettings: ObservableObject {
         showsCustomText = defaults.object(forKey: Key.showsCustomText) as? Bool ?? false
         infoOnAllDisplays = defaults.object(forKey: Key.infoOnAllDisplays) as? Bool ?? false
         keepCoveredOnTrackingLoss = defaults.object(forKey: Key.keepCoveredOnTrackingLoss) as? Bool ?? true
+    }
+
+    var calibrationProfile: ScreenPrivacyCalibrationProfile? {
+        guard let data = defaults.data(forKey: Key.calibrationProfile) else { return nil }
+        return try? JSONDecoder().decode(ScreenPrivacyCalibrationProfile.self, from: data)
+    }
+
+    func saveCalibrationProfile(_ profile: ScreenPrivacyCalibrationProfile) {
+        guard let data = try? JSONEncoder().encode(profile) else { return }
+        defaults.set(data, forKey: Key.calibrationProfile)
     }
 
     var thresholds: ScreenPrivacyThresholds {

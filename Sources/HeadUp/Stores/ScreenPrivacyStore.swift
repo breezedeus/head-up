@@ -24,6 +24,7 @@ final class ScreenPrivacyStore: ObservableObject {
     private var capturedStages: [ScreenPrivacyCalibrationStage: (yaw: Double, pitch: Double)] = [:]
     private var hasArmedOnce = false
     private var isTrackingAvailable = false
+    private var needsAutomaticRecentering = false
     private var isPaused = false
     private var weatherTask: Task<Void, Never>?
     private var lastWeatherCity: String?
@@ -32,7 +33,12 @@ final class ScreenPrivacyStore: ObservableObject {
     init(settings: ScreenPrivacySettings) {
         self.settings = settings
         overlayController = PrivacyOverlayController(settings: settings, content: overlayContent)
-        status = settings.isEnabled ? .needsCalibration : .disabled
+        profile = settings.calibrationProfile
+        needsAutomaticRecentering = profile != nil
+        hasArmedOnce = profile != nil
+        status = settings.isEnabled
+            ? (profile == nil ? .needsCalibration : .trackingLost)
+            : .disabled
     }
 
     var requiresMotionUpdates: Bool {
@@ -49,7 +55,7 @@ final class ScreenPrivacyStore: ObservableObject {
         case .covered: return "回到工作区，或按 Esc 暂停保护"
         case .revealingSoon: return "保持正视即可恢复"
         case .paused: return "从菜单栏继续后重新布防"
-        case .trackingLost: return "请检查 AirPods 连接；屏幕保持保护"
+        case .trackingLost: return "戴回耳机后自动恢复，不需要重新校准"
         }
     }
 
@@ -67,6 +73,7 @@ final class ScreenPrivacyStore: ObservableObject {
     }
 
     func startCalibration() {
+        needsAutomaticRecentering = false
         calibrationError = nil
         capturedStages.removeAll()
         calibrationSamples.removeAll()
@@ -165,7 +172,17 @@ final class ScreenPrivacyStore: ObservableObject {
 
     func handle(_ sample: MotionSample) {
         isTrackingAvailable = true
-        if status == .trackingLost, profile == nil, settings.isEnabled {
+        if needsAutomaticRecentering, let storedProfile = profile {
+            profile = storedProfile.recentered(yaw: sample.yaw, pitch: sample.pitch)
+            needsAutomaticRecentering = false
+            analyzer.reset()
+            horizontalOffset = 0
+            verticalOffset = 0
+            if settings.isEnabled, !isPaused {
+                status = .watching
+                overlayController.hide()
+            }
+        } else if status == .trackingLost, profile == nil, settings.isEnabled {
             status = .needsCalibration
         }
         if calibrationStage != .idle {
@@ -197,15 +214,17 @@ final class ScreenPrivacyStore: ObservableObject {
             cancelCalibration()
             calibrationError = "头部追踪已中断，请连接 AirPods 后重新校准"
         }
+        if !available, profile != nil {
+            needsAutomaticRecentering = true
+        }
         guard settings.isEnabled, !isPaused else { return }
         if available {
             if profile == nil { status = .needsCalibration }
         } else {
-            profile = nil
             analyzer.reset(covered: hasArmedOnce && settings.keepCoveredOnTrackingLoss)
             status = .trackingLost
             if hasArmedOnce, settings.keepCoveredOnTrackingLoss {
-                showOverlay(message: "AirPods 连接中断")
+                showOverlay(message: "AirPods 追踪暂时中断，戴回后自动恢复")
             } else {
                 overlayController.hide()
             }
@@ -263,6 +282,8 @@ final class ScreenPrivacyStore: ObservableObject {
         }
 
         profile = newProfile
+        needsAutomaticRecentering = false
+        settings.saveCalibrationProfile(newProfile)
         settings.leftAngle = newProfile.leftAngle.rounded()
         settings.rightAngle = newProfile.rightAngle.rounded()
         settings.upAngle = newProfile.upAngle.rounded()

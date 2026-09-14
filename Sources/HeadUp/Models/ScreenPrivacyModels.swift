@@ -77,6 +77,19 @@ struct ScreenPrivacyCalibrationProfile: Codable, Equatable {
         )
     }
 
+    func recentered(yaw: Double, pitch: Double) -> ScreenPrivacyCalibrationProfile {
+        ScreenPrivacyCalibrationProfile(
+            centerYaw: yaw,
+            centerPitch: pitch,
+            leftYawDirection: leftYawDirection,
+            upPitchDirection: upPitchDirection,
+            leftAngle: leftAngle,
+            rightAngle: rightAngle,
+            upAngle: upAngle,
+            downAngle: downAngle
+        )
+    }
+
     static func normalizedAngle(_ angle: Double) -> Double {
         var result = angle.truncatingRemainder(dividingBy: 360)
         if result >= 180 { result -= 360 }
@@ -148,7 +161,7 @@ enum ScreenPrivacyRuntimeStatus: Equatable {
         case .covered: return "屏幕已保护"
         case .revealingSoon: return "正在恢复屏幕"
         case .paused: return "屏幕保护已暂停"
-        case .trackingLost: return "头部追踪已中断"
+        case .trackingLost: return "头部追踪暂时中断"
         }
     }
 }

@@ -84,4 +84,21 @@ struct ScreenPrivacyAnalyzerTests {
 
         #expect(profile == nil)
     }
+
+    @Test func recentersAfterTemporaryTrackingLossWithoutForgettingBoundaries() {
+        let recentered = profile.recentered(yaw: 82, pitch: -9)
+
+        #expect(recentered.centerYaw == 82)
+        #expect(recentered.centerPitch == -9)
+        #expect(recentered.leftYawDirection == profile.leftYawDirection)
+        #expect(recentered.upPitchDirection == profile.upPitchDirection)
+        #expect(recentered.leftAngle == profile.leftAngle)
+        #expect(recentered.rightAngle == profile.rightAngle)
+        #expect(recentered.upAngle == profile.upAngle)
+        #expect(recentered.downAngle == profile.downAngle)
+
+        let offsets = recentered.offsets(yaw: 82, pitch: -9)
+        #expect(abs(offsets.horizontal) < 0.001)
+        #expect(abs(offsets.vertical) < 0.001)
+    }
 }

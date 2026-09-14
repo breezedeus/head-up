@@ -13,6 +13,7 @@
 
 - Added hysteresis and separate cover/reveal delays to avoid flickering near a boundary.
 - Kept protection active when AirPods tracking is lost, with an `Esc` escape path, and filtered duplicate Core Motion frames from liveness checks.
+- Saved the four-direction calibration locally, kept it when one AirPod is removed or tracking briefly reconnects, and automatically recentered protection when fresh motion data resumed.
 - Kept head-orientation processing local; optional weather requests send only the configured city to Open-Meteo.
 
 ### Verification

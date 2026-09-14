@@ -36,4 +36,26 @@ struct ScreenPrivacySettingsTests {
         #expect(reloaded.downAngle == 30)
         #expect(reloaded.customText == "专注工作中")
     }
+
+    @Test func calibratedWorkAreaPersistsForAutomaticRecovery() {
+        let suiteName = "ScreenPrivacySettingsTests.profile-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let profile = ScreenPrivacyCalibrationProfile(
+            centerYaw: 12,
+            centerPitch: -4,
+            leftYawDirection: -1,
+            upPitchDirection: 1,
+            leftAngle: 42,
+            rightAngle: 38,
+            upAngle: 19,
+            downAngle: 26
+        )
+        let settings = ScreenPrivacySettings(defaults: defaults)
+        settings.saveCalibrationProfile(profile)
+
+        let reloaded = ScreenPrivacySettings(defaults: defaults)
+        #expect(reloaded.calibrationProfile == profile)
+    }
 }
