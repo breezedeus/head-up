@@ -1,101 +1,134 @@
-# 抬头 HeadUp
+# HeadUp
 
-[简体中文](README.md) · [English](README.en.md)
+[English](README.md) · [简体中文](README.zh-CN.md)
 
-**戴着 AirPods 工作时，HeadUp 一边帮你照顾颈椎，一边在你转头离开时自动遮挡屏幕。** 它常驻 Mac 菜单栏、不使用摄像头；头部回到屏幕前，遮挡自动消失，可以直接继续工作。
-
-<p align="center">
-  <img src="docs/images/headup-status.png" width="380" alt="HeadUp 菜单栏面板：实时低头角度、最近 60 分钟姿态与今日统计" />
-</p>
-
-## 功能一览
-
-- **转头自动防窥**：头部离开工作范围后模糊并压暗所有显示器，回看即自动恢复
-- **四向识别**：向左、向右、仰头、低头，每个方向都有独立边界
-- **多显示器支持**：一次遮挡全部屏幕，每块屏还能单独设置左右上下四个角度
-- **漂移自动修正**：逐屏学习并抵消头部姿态的缓慢漂移，戴得再久边界也不会越偏越多
-- **低头提醒**：持续低头超时后，用通知、提示音或屏幕提示提醒你抬头
-- **遮挡即信息页**：遮挡时可显示时间、天气或自定义文字，支持模糊压暗与纯色两种背景
-- **AirPods 友好**：摘下单只耳机、短暂重连都不会丢失校准，按 `Esc` 可随时紧急恢复
-
-## 转头离开时，自动保护屏幕
-
-在办公室和共享空间里，转身和同事说话、低头找东西，或起身离开座位时，HeadUp 会在头部越过工作边界的瞬间自动模糊并压暗所有屏幕，减少聊天记录、客户资料和内部文档被旁人看到的机会。
+**While you work with AirPods, HeadUp looks after your neck and automatically covers your screens the moment you turn away.** It lives in the Mac menu bar and uses no camera. Face your screens again and the cover disappears — no clicks required.
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings.png" width="720" alt="屏幕保护设置：工作区校准与左右上下允许角度" />
+  <img src="docs/images/headup-status.png" width="380" alt="HeadUp menu bar panel: live head-down angle, the last 60 minutes of posture, and today's stats" />
 </p>
 
-- 同时识别向左、向右、仰头、低头，不会只盯着一个方向
-- 支持多个显示器，一次遮挡全部屏幕
-- **每块屏幕的四个角度都能单独微调，改完立即生效，不必重新校准**
-- 内置漂移自动修正：逐屏学习 AirPods 姿态的缓慢偏移并持续抵消，长时间使用边界也不跑偏
-- 回到工作范围后自动恢复，无需点击或解锁
-- 临时摘下一只耳机不会清空设置；单显示器重连后自动恢复，多显示器只需正视屏幕中心点一下"对准这里"，都不必重新校准
-- 紧急时按 `Esc`，立即显示屏幕并暂停保护
+## Highlights
 
-遮挡画面也可以是一张安静的信息页，你可以选择显示什么：
+- **Automatic privacy cover**: blurs and dims every display when your head leaves your work area, restores instantly when you look back
+- **Four-direction tracking**: independent boundaries for left, right, up, and down
+- **Multiple displays**: protects every screen at once, with four independently adjustable angles per display
+- **Drift auto-correction**: each display learns and cancels slow head-pose drift, so boundaries stay accurate over long sessions
+- **Posture reminders**: a notification, sound, or on-screen prompt when your head stays lowered too long
+- **A cover that informs**: show the time, weather, or a custom message over a blurred or solid background
+- **AirPods-friendly**: removing one earbud or a brief reconnect never wipes your calibration; press `Esc` to reveal screens at any time
+
+## Protect your screens when you turn away
+
+In an office or shared workspace, when you turn to speak with a coworker, look down for something, or leave your desk, HeadUp blurs and dims every display the instant your head crosses a work boundary — reducing the chance that nearby people see private chats, customer information, or internal documents.
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings2.png" width="720" alt="遮挡内容设置：遮挡方式、压暗程度、日期时间、天气与自定义文字" />
+  <img src="docs/images/headup-protection-settings.png" width="720" alt="Screen Protection settings: workspace calibration and the allowed left, right, up, and down angles" />
 </p>
 
-- 系统日期和时间，可选是否显示秒数
-- 当前天气（由 Open-Meteo 提供，默认关闭）
-- 自己写的一句话，例如“马上回来”或公司访客提示
-- 模糊压暗的桌面，或纯色背景，压暗程度可调
+- Detects turns left and right as well as looking up and down — not just one direction
+- Supports multiple displays and protects them all at once
+- **Fine-tune all four angles of every display independently; changes apply instantly with no recalibration**
+- Built-in drift correction learns and offsets slow AirPods pose drift per display, so boundaries stay put even after hours of wear
+- Restores automatically when you face your work area again — no click or unlock
+- Temporarily removing one AirPod keeps your setup: a single display resumes on its own after a reconnect, and a multi-display setup just needs one tap on "Aim here" while facing the screen center — neither requires recalibrating
+- Press `Esc` to reveal your screens immediately and pause protection
 
-## 低头太久，提醒你抬头
-
-HeadUp 会学习你坐直和平常低头时的角度。当你持续低头超过设定时间，它会通过通知、提示音或屏幕提示提醒你活动一下。
+The cover can also be a calm information page. Choose what it shows:
 
 <p align="center">
-  <img src="docs/images/headup-posture.png" width="720" alt="姿态提醒设置：低头阈值、持续时间、冷却时间与提醒方式" />
+  <img src="docs/images/headup-protection-settings2.png" width="720" alt="Overlay Content settings: cover style, dimming level, date and time, weather, and custom text" />
 </p>
 
-菜单栏面板随时显示当前低头角度、提醒倒计时、最近 60 分钟的姿态变化，以及今天保持良好姿态的比例（见顶部面板图）。
+- System date and time, with optional seconds
+- Current weather (powered by Open-Meteo, off by default)
+- Your own message, such as “Back soon” or a note for office visitors
+- A blurred and dimmed desktop or a solid-color background, with adjustable dimming
 
-## 三分钟开始使用
+## Remind you when your head stays lowered
 
-1. 将支持头部追踪的 AirPods 连接到 Mac，并打开 HeadUp。
-2. 首次使用时，允许“运动与健身”权限。
-3. 按引导完成两步姿态校准：坐直看屏幕，再自然低头。
-4. 如果要使用屏幕保护，在 **设置 → 屏幕保护** 中打开功能，并依次看向工作区中心、最左、最右、最高和最低位置。
-5. 在 **设置 → 遮挡内容** 中选择遮挡样式，以及是否显示时间、天气和自定义文字。
+HeadUp learns the difference between your upright position and the way you naturally look down. If your head stays lowered longer than the time you choose, it reminds you to move with a notification, sound, or on-screen prompt.
 
-四向校准是为了适应你的桌面：单屏、双屏、上下摆放的屏幕都可以有不同的工作范围；校准后每块屏的四个角度仍可随时单独微调。完成一次后，普通的耳机切换和短暂断连不会要求你重新设置。
+<p align="center">
+  <img src="docs/images/headup-posture.png" width="720" alt="Posture Reminder settings: head-down threshold, duration, cooldown, and alert methods" />
+</p>
 
-首次启动会显示简短的使用指南，之后可以从菜单栏面板右上角的菜单再次打开。
+The menu bar panel always shows your current downward angle, the reminder countdown, posture changes over the last 60 minutes, and today's good-posture percentage (see the panel at the top).
 
-## 隐私
+## Get started in three minutes
 
-HeadUp 使用 AirPods 提供的头部方向数据，不使用摄像头，也不会判断你在看屏幕上的哪一项内容。头部角度和姿态记录只保存在这台 Mac 上。
+1. Connect head-tracking AirPods to your Mac and open HeadUp.
+2. Allow Motion & Fitness access when prompted.
+3. Complete the two-step posture setup: look straight at your screen, then lower your head naturally.
+4. To use screen protection, open **Settings → Screen Protection**, turn it on, and look at the center, far-left, far-right, highest, and lowest points of your work area when prompted.
+5. Open **Settings → Overlay Content** to choose the cover style and whether to show the time, weather, or a custom message.
 
-天气功能默认关闭。打开后，只会把你填写的城市发送给 Open-Meteo 查询天气。更多说明见 [PRIVACY.md](PRIVACY.md)。
+The four-direction setup adapts HeadUp to your desk — single displays, side-by-side displays, and stacked displays can all have different work areas, and all four angles of each display remain adjustable afterward. Once setup is complete, normal earbud changes and brief disconnections will not make you repeat it.
 
-## 系统要求
+A short guide appears on first launch; you can reopen it from the menu in the top-right corner of the menu bar panel.
 
-- macOS 14 或更高版本
-- 支持头部追踪并已连接到 Mac 的 AirPods 或 Beats
-- “运动与健身”权限；通知权限为可选项
+## Privacy
 
-## 下载与安装
+HeadUp uses head-direction data from your AirPods. It does not use a camera and cannot tell which item on your screen you are looking at. Head-angle data and posture history stay on this Mac.
 
-项目目前还没有经过 Apple 公证的公开安装包，正式版本之后会发布在 [GitHub Releases](https://github.com/breezedeus/head-up/releases)。当前可以从源码构建体验：
+Weather is off by default. When enabled, HeadUp sends only the city you entered to Open-Meteo. See [PRIVACY.md](PRIVACY.md) for more details.
+
+## Requirements
+
+- macOS 14 or later
+- AirPods or Beats that support head tracking and are connected to your Mac
+- Motion & Fitness permission; notification permission is optional
+
+## Download and install
+
+The project does not yet provide a publicly distributed build notarized by Apple. Official builds will be published on [GitHub Releases](https://github.com/breezedeus/head-up/releases). For now, you can build it from source:
 
 ```bash
 ./script/build_and_run.sh
 ```
 
-应用会生成在 `dist/HeadUp.app`。如果遇到连接、权限或提醒问题，请查看 [SUPPORT.md](SUPPORT.md)。
+The app is created at `dist/HeadUp.app`. If you have trouble with the connection, permissions, or reminders, see [SUPPORT.md](SUPPORT.md).
 
-## 开发者信息
+## Developer information
 
-运行测试和构建检查：
+### Common commands
 
 ```bash
+# Build and launch; the app lands in dist/HeadUp.app
+./script/build_and_run.sh
+
+# Build without launching
+./script/build_and_run.sh build
+
+# Launch and follow logs (--telemetry filters to this app's subsystem)
+./script/build_and_run.sh --logs
+./script/build_and_run.sh --telemetry
+
+# Debug under lldb
+./script/build_and_run.sh --debug
+
+# Tests; --verify launches once and checks the process stays up
 swift test
 ./script/build_and_run.sh --verify
 ```
 
-发布和签名流程见 [RELEASING.md](RELEASING.md)。HeadUp 只能根据 AirPods 的姿态数据识别头部方向，无法判断含胸、弯腰、肩膀位置或坐姿与站姿，也不属于医疗设备。
+`HEADUP_PREVIEW=1` compiles with `-DHEADUP_DEBUG`, keeping the per-second drift diagnostics (sample attribution, speed gating, corrected centers and offsets per screen). These hot-path logs are compiled out of normal builds.
+
+```bash
+# Preview debug build, pair with --logs to watch the drift traces
+HEADUP_PREVIEW=1 ./script/build_and_run.sh --logs
+
+# Preview release package: ad-hoc signed, no Developer ID and no notarization
+HEADUP_PREVIEW=1 HEADUP_SIGNING_IDENTITY=- ./script/package_release.sh
+```
+
+Both land in `dist/release/`. The `-preview` suffix goes on the archive name only; unzipping still gives you a plain `HeadUp.app`:
+
+| Command | Archive | Unzips to |
+| --- | --- | --- |
+| `./script/package_release.sh` | `HeadUp-<version>.zip` | `HeadUp.app` |
+| `HEADUP_PREVIEW=1 …` | `HeadUp-preview-<version>.zip` | `HeadUp.app` |
+
+A preview bundle sets `HeadUpPreviewBuild = true` in its Info.plist, which is how you tell them apart. The `dist/HeadUp.app` from `build_and_run.sh` carries no suffix either way: that script produces no archive, so a preview and a normal build just replace each other at the same path.
+
+See [RELEASING.md](RELEASING.md) for the full signing, notarization, and release flow. HeadUp can identify head direction from AirPods motion data, but it cannot measure slouching, bending at the waist, shoulder position, or whether you are sitting or standing. It is not a medical device.

@@ -12,6 +12,8 @@ final class PrivacyOverlayController {
     /// Receives the stable display ID of the screen whose target was tapped, so the
     /// recenter references the screen the user was actually facing.
     private var onRecenter: ((String) -> Void)?
+    /// Whoever was frontmost when the overlay went up, so focus can go back there.
+    private var previouslyActiveApp: NSRunningApplication?
 
     init(settings: ScreenPrivacySettings, content: PrivacyOverlayContentModel) {
         self.settings = settings
@@ -49,6 +51,20 @@ final class PrivacyOverlayController {
             return
         }
         isVisible = true
+        // Captured before activating, while the answer is still the user's app. Only on
+        // the not-visible -> visible edge: `rebuildPanels` also runs on display changes,
+        // and re-capturing then would record ourselves.
+        let front = NSWorkspace.shared.frontmostApplication
+        previouslyActiveApp = front?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : front
+        // Before `rebuildPanels`, so the `makeKey()` in there can take effect: the app is
+        // an accessory that never activates on its own, an inactive app has no key window
+        // at all, and without a key window Esc went to whatever app was frontmost — with
+        // the screen covered, straight into an app the user cannot see.
+        //
+        // `NSApplication.shared` rather than `NSApp`: the latter is an implicitly
+        // unwrapped optional and is nil in the test process, where no application
+        // instance is ever created.
+        NSApplication.shared.activate(ignoringOtherApps: true)
         rebuildPanels()
     }
 
@@ -59,6 +75,12 @@ final class PrivacyOverlayController {
         content.message = nil
         onPause = nil
         onRecenter = nil
+        // Hand focus back, or the user is left in an accessory app with no windows and
+        // has to click their own app again.
+        if let previouslyActiveApp, !previouslyActiveApp.isTerminated {
+            previouslyActiveApp.activate()
+        }
+        previouslyActiveApp = nil
     }
 
     private func rebuildPanels() {
