@@ -10,12 +10,34 @@ BUILD_NUMBER="${HEADUP_BUILD_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)
 SIGNING_IDENTITY="${HEADUP_SIGNING_IDENTITY:-}"
 NOTARY_PROFILE="${HEADUP_NOTARY_PROFILE:-}"
 RELEASE_DIR="$ROOT_DIR/dist/release"
+
+# HEADUP_PREVIEW=1 keeps the -DHEADUP_DEBUG verbose drift diagnostics in an
+# optimized release build and marks the bundle via HeadUpPreviewBuild in Info.plist.
+PREVIEW_BUILD=0
+if [[ "${HEADUP_PREVIEW:-0}" == "1" ]]; then
+  PREVIEW_BUILD=1
+fi
+SWIFT_BUILD_ARGS=(-c release --arch arm64 --arch x86_64)
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  SWIFT_BUILD_ARGS+=(-Xswiftc -DHEADUP_DEBUG)
+fi
+
+# A preview package carries verbose diagnostics and is not a shippable release, so
+# the archive is named apart from one. The suffix stays out of the bundle itself: what
+# users unzip and drop into /Applications is always "HeadUp.app", so a preview cannot
+# end up installed alongside a release under a second name while sharing its bundle ID.
+# A preview bundle is still identifiable by HeadUpPreviewBuild in its Info.plist.
+ARCHIVE_NAME="$APP_NAME"
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  ARCHIVE_NAME="$APP_NAME-preview"
+fi
+
 APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
-ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.zip"
-DSYM_ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.dSYM.zip"
+ZIP_PATH="$RELEASE_DIR/$ARCHIVE_NAME-$VERSION.zip"
+DSYM_ZIP_PATH="$RELEASE_DIR/$ARCHIVE_NAME-$VERSION.dSYM.zip"
 RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
 require_xcbuild_for_universal_build() {
@@ -75,8 +97,13 @@ if [[ ! -f "$ROOT_DIR/Resources/HeadUp.icns" ]]; then
 fi
 
 cd "$ROOT_DIR"
-swift build -c release --arch arm64 --arch x86_64
-BUILD_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  echo "Preview release: HEADUP_DEBUG enabled, verbose drift logs will be recorded."
+fi
+# macOS ships bash 3.2, where `set -u` treats an empty array expansion as unbound.
+# The `${a[@]+...}` guard keeps a non-preview build (empty args) working.
+swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"}
+BUILD_DIR="$(swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"} --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
 mkdir -p "$RELEASE_DIR"
@@ -95,6 +122,18 @@ fi
 
 cp "$ROOT_DIR/Resources/HeadUp.icns" "$APP_RESOURCES/HeadUp.icns"
 
+# System-facing app names and permission descriptions follow the system language.
+for app_language in en zh-Hans; do
+  mkdir -p "$APP_RESOURCES"/"$app_language.lproj"
+  cp "$ROOT_DIR/Sources/HeadUp/Resources/$app_language.lproj/InfoPlist.strings" "$APP_RESOURCES"/"$app_language.lproj/InfoPlist.strings"
+done
+
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  PREVIEW_PLIST_LINE=$'\t<key>HeadUpPreviewBuild</key><true/>'
+else
+  PREVIEW_PLIST_LINE=""
+fi
+
 cat >"$APP_CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -102,18 +141,20 @@ cat >"$APP_CONTENTS/Info.plist" <<PLIST
 <dict>
   <key>CFBundleExecutable</key><string>$APP_NAME</string>
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
-  <key>CFBundleName</key><string>抬头</string>
-  <key>CFBundleDisplayName</key><string>抬头</string>
+  <key>CFBundleName</key><string>HeadUp</string>
+  <key>CFBundleDisplayName</key><string>HeadUp</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-  <key>CFBundleDevelopmentRegion</key><string>zh_CN</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD_NUMBER</string>
+$PREVIEW_PLIST_LINE
   <key>CFBundleIconFile</key><string>HeadUp</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.healthcare-fitness</string>
   <key>LSMinimumSystemVersion</key><string>$MIN_SYSTEM_VERSION</string>
   <key>LSUIElement</key><true/>
-  <key>NSMotionUsageDescription</key><string>抬头需要读取 AirPods 的头部运动数据，以判断你是否持续低头。</string>
+  <key>NSMotionUsageDescription</key><string>HeadUp uses AirPods head motion data for posture reminders and to cover screens when you look away.</string>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
 </plist>

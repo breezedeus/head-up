@@ -1,0 +1,3 @@
+"CFBundleName" = "抬头";
+"CFBundleDisplayName" = "抬头";
+"NSMotionUsageDescription" = "抬头需要读取 AirPods 的头部运动数据，用于姿态提醒和离开工作区时保护屏幕。";

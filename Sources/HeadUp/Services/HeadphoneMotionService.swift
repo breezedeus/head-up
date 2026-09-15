@@ -8,8 +8,8 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
         var errorDescription: String? {
             switch self {
-            case .motionUnavailable: return "当前没有可用的 AirPods 头部运动数据"
-            case .permissionDenied: return "运动与健身权限已关闭"
+            case .motionUnavailable: return L10n.text("当前没有可用的 AirPods 头部运动数据")
+            case .permissionDenied: return L10n.text("运动与健身权限已关闭")
             }
         }
     }
@@ -22,6 +22,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
     private var manager = CMHeadphoneMotionManager()
     private let audioConnectionService = HeadphoneAudioConnectionService()
     private var hasLoggedFirstSample = false
+    private var sampleFreshnessGate = MotionSampleFreshnessGate()
     private var motionStartInFlight = false
     private var motionUpdateGate = MotionUpdateGate()
     var motionUpdatesEnabled: Bool { motionUpdateGate.isEnabled }
@@ -147,7 +148,9 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
 
     private func processLatestDeviceMotion() {
         guard motionUpdatesEnabled, manager.isDeviceMotionActive else { return }
-        guard let attitude = manager.deviceMotion?.attitude else { return }
+        guard let motion = manager.deviceMotion else { return }
+        guard sampleFreshnessGate.accept(timestamp: motion.timestamp) else { return }
+        let attitude = motion.attitude
 
         if !hasLoggedFirstSample {
             hasLoggedFirstSample = true
@@ -158,6 +161,8 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         let sample = MotionSample(
             pitch: attitude.pitch * radiansToDegrees,
             roll: attitude.roll * radiansToDegrees,
+            yaw: attitude.yaw * radiansToDegrees,
+            sensorTimestamp: motion.timestamp,
             timestamp: Date()
         )
 
@@ -304,6 +309,7 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         manager.stopDeviceMotionUpdates()
         manager.stopConnectionStatusUpdates()
         manager = CMHeadphoneMotionManager()
+        sampleFreshnessGate.reset()
         configureMotionManager()
         manager.startConnectionStatusUpdates()
         logMotionManagerState("after-rebuild-motion-manager")
@@ -345,6 +351,20 @@ final class HeadphoneMotionService: NSObject, CMHeadphoneMotionManagerDelegate {
         func merged(with other: ConnectionEvidence) -> ConnectionEvidence {
             other.priority > priority ? other : self
         }
+    }
+}
+
+struct MotionSampleFreshnessGate {
+    private var lastTimestamp: TimeInterval?
+
+    mutating func accept(timestamp: TimeInterval) -> Bool {
+        guard timestamp.isFinite, timestamp != lastTimestamp else { return false }
+        lastTimestamp = timestamp
+        return true
+    }
+
+    mutating func reset() {
+        lastTimestamp = nil
     }
 }
 

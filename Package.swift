@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "HeadUp",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "HeadUp", targets: ["HeadUp"])

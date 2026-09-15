@@ -16,6 +16,7 @@ private struct GaugeArc: Shape {
 }
 
 struct PostureGauge: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let angle: Double
     let status: PostureStatus
     let duration: TimeInterval
@@ -50,7 +51,7 @@ struct PostureGauge: View {
                 Text("\(Int(angle.rounded()))°")
                     .font(.system(size: 46, weight: .semibold, design: .rounded))
                     .contentTransition(.numericText())
-                Text("低头角度")
+                Text(L10n.text("低头角度"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -58,6 +59,6 @@ struct PostureGauge: View {
         }
         .frame(width: 176, height: 108)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("低头角度 \(Int(angle.rounded())) 度，阈值 \(Int(threshold)) 度")
+        .accessibilityLabel(L10n.text("低头角度 {0} 度，阈值 {1} 度", "\(Int(angle.rounded()))", "\(Int(threshold))"))
     }
 }

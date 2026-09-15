@@ -4,6 +4,18 @@ import SwiftUI
 @MainActor
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
+    private var languageObserver: NSObjectProtocol?
+
+    override init() {
+        super.init()
+        languageObserver = NotificationCenter.default.addObserver(forName: .headUpLanguageChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.window?.title = L10n.text("欢迎使用抬头") }
+        }
+    }
+
+    deinit {
+        if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) }
+    }
 
     func showIfNeeded() {
         guard !UserDefaults.standard.bool(forKey: HeadUpDefaultsKey.onboardingCompleted) else { return }
@@ -17,7 +29,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "欢迎使用抬头"
+        window.title = L10n.text("欢迎使用抬头")
         window.isReleasedWhenClosed = false
         window.collectionBehavior.insert(.moveToActiveSpace)
         window.delegate = self

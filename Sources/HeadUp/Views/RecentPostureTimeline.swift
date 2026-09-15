@@ -1,17 +1,18 @@
 import SwiftUI
 
 struct RecentPostureTimeline: View {
+    @ObservedObject private var localization = AppLocalization.shared
     let bins: [PostureBinState]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
-                Text("最近 60 分钟")
+                Text(L10n.text("最近 60 分钟"))
                     .font(.subheadline.weight(.medium))
                 Spacer()
                 HStack(spacing: 10) {
-                    legend(color: .green, text: "良好")
-                    legend(color: .orange, text: "低头")
+                    legend(color: .green, text: L10n.text("良好"))
+                    legend(color: .orange, text: L10n.text("低头"))
                 }
             }
 
@@ -24,14 +25,14 @@ struct RecentPostureTimeline: View {
             }
             .frame(height: 8)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("最近 60 分钟姿态时间线")
+            .accessibilityLabel(L10n.text("最近 60 分钟姿态时间线"))
 
             HStack {
-                Text("60 分钟前")
+                Text(L10n.text("60 分钟前"))
                 Spacer()
-                Text("30 分钟前")
+                Text(L10n.text("30 分钟前"))
                 Spacer()
-                Text("现在")
+                Text(L10n.text("现在"))
             }
             .font(.caption2)
             .foregroundStyle(.tertiary)

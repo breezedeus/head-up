@@ -35,8 +35,8 @@ final class NotificationService {
 
     func sendPostureReminder(angle: Double) {
         let content = UNMutableNotificationContent()
-        content.title = "抬头"
-        content.body = "你已经低头一会儿了。下巴轻轻抬一点，肩膀放松。"
+        content.title = L10n.text("抬头")
+        content.body = L10n.text("你已经低头一会儿了。下巴轻轻抬一点，肩膀放松。")
         content.userInfo = ["angle": angle]
 
         let request = UNNotificationRequest(

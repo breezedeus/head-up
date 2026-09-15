@@ -31,6 +31,20 @@ HEADUP_NOTARY_PROFILE="headup-notary" \
 
 The script creates a universal `arm64`/`x86_64` Release app, enables Hardened Runtime, submits it for notarization, staples the ticket, verifies Gatekeeper acceptance, and writes the final app ZIP plus a separate dSYM ZIP and SHA-256 checksums under `dist/release/`. Keep the dSYM private if the GitHub release itself is public; it is needed to symbolicate crash reports but users do not need to download it.
 
+## Local preview package with debug drift logs
+
+`HEADUP_PREVIEW=1` compiles the app with `-DHEADUP_DEBUG`, which keeps verbose
+drift diagnostics (sample attribution, speed gating, corrected centers) at
+info level. For an optimized universal package under `dist/release/` without a
+Developer ID or notarization, use ad-hoc signing:
+
+```bash
+HEADUP_PREVIEW=1 HEADUP_SIGNING_IDENTITY=- ./script/package_release.sh
+```
+
+The resulting bundle sets `HeadUpPreviewBuild = true` in its Info.plist. Omit
+`HEADUP_PREVIEW` for normal builds, where the hot-path traces are compiled out.
+
 ## GitHub release automation
 
 The release workflow runs for tags matching `v*`. Configure these repository secrets:
@@ -43,4 +57,4 @@ The release workflow runs for tags matching `v*`. Configure these repository sec
 - `APPLE_APP_SPECIFIC_PASSWORD`
 - `KEYCHAIN_PASSWORD`
 
-Update `VERSION`, update `RELEASE.md`, merge to `main`, and push a matching tag such as `v0.1.0`.
+Update `VERSION`, update `CHANGELOG.md`, merge to `main`, and push a matching tag such as `v0.1.0`.

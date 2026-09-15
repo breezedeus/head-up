@@ -14,19 +14,21 @@ final class PostureStore: ObservableObject {
     @Published private(set) var remindersToday = 0
     @Published private(set) var notificationsAllowed: Bool?
     @Published private(set) var headphoneActivity: HeadphoneActivity = .unknown
-    @Published private(set) var calibrationError: String?
+    @Published private var calibrationErrorKey: String?
+    var calibrationError: String? { calibrationErrorKey.map { L10n.text($0) } }
     @Published private(set) var launchAtLogin = false
-    @Published private(set) var launchAtLoginError: String?
+    @Published private var launchAtLoginErrorKey: String?
+    var launchAtLoginError: String? { launchAtLoginErrorKey.map { L10n.text($0) } }
     @Published private(set) var recentPostureBins: [PostureBinState] = Array(repeating: .empty, count: 30)
     @Published var isMonitoring = true {
         didSet {
             if isMonitoring {
                 analyzer.reset()
-                motionService.restart()
+                motionService.setMotionUpdatesEnabled(true)
                 activityService.start()
                 refreshStatus()
             } else {
-                motionService.setMotionUpdatesEnabled(false)
+                updateMotionRequirement()
                 activityService.stop()
                 analyzer.reset()
                 status = .paused
@@ -36,6 +38,8 @@ final class PostureStore: ObservableObject {
     }
 
     let settings = AppSettings()
+    let privacySettings: ScreenPrivacySettings
+    let privacyStore: ScreenPrivacyStore
 
     private let motionService = HeadphoneMotionService()
     private let activityService = HeadphoneActivityService()
@@ -73,6 +77,9 @@ final class PostureStore: ObservableObject {
 
     init() {
         let defaults = UserDefaults.standard
+        let privacySettings = ScreenPrivacySettings(defaults: defaults)
+        self.privacySettings = privacySettings
+        privacyStore = ScreenPrivacyStore(settings: privacySettings)
         if defaults.object(forKey: DefaultsKey.baseline) != nil {
             analyzer.baselinePitch = defaults.double(forKey: DefaultsKey.baseline)
             analyzer.downwardDirection = defaults.double(forKey: DefaultsKey.direction) == 0
@@ -107,6 +114,9 @@ final class PostureStore: ObservableObject {
         activityService.onActivityChanged = { [weak self] activity in
             self?.handleActivity(activity)
         }
+        privacyStore.onMotionRequirementChanged = { [weak self] in
+            self?.updateMotionRequirement()
+        }
 
         onboardingObserver = NotificationCenter.default.addObserver(
             forName: .headUpOnboardingCompleted,
@@ -137,13 +147,13 @@ final class PostureStore: ObservableObject {
     }
 
     var connectionText: String {
-        guard isConnected else { return "未检测到兼容的 AirPods" }
-        return isTrackingAvailable ? "AirPods 头部追踪已连接" : "AirPods 已连接，头部追踪暂不可用"
+        guard isConnected else { return L10n.text("未检测到兼容的 AirPods") }
+        return isTrackingAvailable ? L10n.text("AirPods 头部追踪已连接") : L10n.text("AirPods 已连接，头部追踪暂不可用")
     }
 
     func startCalibration() {
         guard isConnected else { return }
-        calibrationError = nil
+        calibrationErrorKey = nil
         HeadUpLog.calibration.info("Two-stage calibration started")
         calibrationStage = .upright
         calibrationStartedAt = nil
@@ -199,14 +209,19 @@ final class PostureStore: ObservableObject {
         presentReminder(angle: max(angle, settings.threshold))
     }
 
+    func setScreenPrivacyEnabled(_ enabled: Bool) {
+        privacyStore.setEnabled(enabled)
+        updateMotionRequirement()
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try loginItemService.setEnabled(enabled)
             launchAtLogin = loginItemService.isEnabled
-            launchAtLoginError = nil
+            launchAtLoginErrorKey = nil
         } catch {
             launchAtLogin = loginItemService.isEnabled
-            launchAtLoginError = error.localizedDescription
+            launchAtLoginErrorKey = "无法更改登录启动设置，请在系统设置中检查权限。"
             HeadUpLog.lifecycle.error("Login item update failed: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -230,6 +245,8 @@ final class PostureStore: ObservableObject {
         Head tracking available: \(isTrackingAvailable)
         Headphone activity: \(headphoneActivity.diagnosticDescription)
         Monitoring enabled: \(isMonitoring)
+        Screen privacy enabled: \(privacySettings.isEnabled)
+        Screen privacy state: \(privacyStore.status.title)
         Calibrated: \(analyzer.isCalibrated)
         Installed in Applications: \(HeadUpAppInfo.isInstalledInApplications)
         """
@@ -241,6 +258,7 @@ final class PostureStore: ObservableObject {
 
     private func handle(_ sample: MotionSample) {
         isConnected = true
+        privacyStore.handle(sample)
 
         if let previous = lastMotionSampleAt,
            sample.timestamp.timeIntervalSince(previous) > 2 {
@@ -311,7 +329,7 @@ final class PostureStore: ObservableObject {
                 calibrationStartedAt = nil
                 calibrationSamples.removeAll()
                 calibrationProgress = 0
-                calibrationError = "低头幅度太小，请保持坐直后重新校准"
+                calibrationErrorKey = "低头幅度太小，请保持坐直后重新校准"
                 status = .needsCalibration
                 HeadUpLog.calibration.notice("Calibration rejected because movement was too small")
                 return
@@ -437,10 +455,15 @@ final class PostureStore: ObservableObject {
     private func handleTrackingAvailabilityChanged(_ available: Bool) {
         HeadUpLog.motion.notice("Headphone tracking availability changed; available=\(available, privacy: .public)")
         isTrackingAvailable = available
+        privacyStore.handleTrackingAvailabilityChanged(available)
         if !available {
             resetLiveSession()
         }
         refreshStatus()
+    }
+
+    private func updateMotionRequirement() {
+        motionService.setMotionUpdatesEnabled(isMonitoring || privacyStore.requiresMotionUpdates)
     }
 
     private func cancelCalibrationAfterDisconnect() {
@@ -451,7 +474,7 @@ final class PostureStore: ObservableObject {
         calibrationProgress = 0
         uprightPitch = nil
         if !analyzer.isCalibrated {
-            calibrationError = "AirPods 已断开，请重新连接后再校准"
+            calibrationErrorKey = "AirPods 已断开，请重新连接后再校准"
         }
         HeadUpLog.calibration.notice("Calibration cancelled after headphones disconnected")
     }

@@ -3,6 +3,8 @@ import Foundation
 struct MotionSample {
     let pitch: Double
     let roll: Double
+    let yaw: Double
+    let sensorTimestamp: TimeInterval
     let timestamp: Date
 }
 
@@ -32,8 +34,8 @@ enum CalibrationStage: Equatable {
     var instruction: String {
         switch self {
         case .idle: return ""
-        case .upright: return "请坐直并平视屏幕"
-        case .lookDown: return "现在请自然低头"
+        case .upright: return L10n.text("请坐直并平视屏幕")
+        case .lookDown: return L10n.text("现在请自然低头")
         }
     }
 }
@@ -52,16 +54,16 @@ enum PostureStatus: Equatable {
 
     var title: String {
         switch self {
-        case .unavailable: return "等待头部追踪"
-        case .disconnected: return "等待 AirPods"
-        case .permissionDenied: return "需要运动与健身权限"
-        case .needsCalibration: return "请先校准"
-        case .paused: return "监测已暂停"
-        case .moving: return "移动中"
+        case .unavailable: return L10n.text("等待头部追踪")
+        case .disconnected: return L10n.text("等待 AirPods")
+        case .permissionDenied: return L10n.text("需要运动与健身权限")
+        case .needsCalibration: return L10n.text("请先校准")
+        case .paused: return L10n.text("监测已暂停")
+        case .moving: return L10n.text("移动中")
         case .calibrating(let stage): return stage.instruction
-        case .good: return "姿势良好"
-        case .caution: return "正在低头"
-        case .warning: return "注意低头"
+        case .good: return L10n.text("姿势良好")
+        case .caution: return L10n.text("正在低头")
+        case .warning: return L10n.text("注意低头")
         }
     }
 }
