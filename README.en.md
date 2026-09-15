@@ -31,7 +31,7 @@ In an office or shared workspace, when you turn to speak with a coworker, look d
 - **Fine-tune all four angles of every display independently; changes apply instantly with no recalibration**
 - Built-in drift correction learns and offsets slow AirPods pose drift per display, so boundaries stay put even after hours of wear
 - Restores automatically when you face your work area again — no click or unlock
-- Temporarily removing one AirPod keeps your setup; protection resumes after a brief reconnect without recalibrating
+- Temporarily removing one AirPod keeps your setup: a single display resumes on its own after a reconnect, and a multi-display setup just needs one tap on "Aim here" while facing the screen center — neither requires recalibrating
 - Press `Esc` to reveal your screens immediately and pause protection
 
 The cover can also be a calm information page. Choose what it shows:

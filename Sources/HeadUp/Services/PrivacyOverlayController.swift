@@ -9,6 +9,9 @@ final class PrivacyOverlayController {
     private let settings: ScreenPrivacySettings
     private let content: PrivacyOverlayContentModel
     private var onPause: (() -> Void)?
+    /// Receives the stable display ID of the screen whose target was tapped, so the
+    /// recenter references the screen the user was actually facing.
+    private var onRecenter: ((String) -> Void)?
 
     init(settings: ScreenPrivacySettings, content: PrivacyOverlayContentModel) {
         self.settings = settings
@@ -31,10 +34,20 @@ final class PrivacyOverlayController {
         }
     }
 
-    func show(message: String? = nil, onPause: @escaping () -> Void) {
+    func show(
+        message: String? = nil,
+        onPause: @escaping () -> Void,
+        onRecenter: ((String) -> Void)? = nil
+    ) {
         content.message = message
         self.onPause = onPause
-        guard !isVisible else { return }
+        let targetVisibilityChanged = (self.onRecenter == nil) != (onRecenter == nil)
+        self.onRecenter = onRecenter
+        guard !isVisible else {
+            // The target appearing or disappearing changes the panel contents.
+            if targetVisibilityChanged { rebuildPanels() }
+            return
+        }
         isVisible = true
         rebuildPanels()
     }
@@ -45,6 +58,7 @@ final class PrivacyOverlayController {
         panels.removeAll()
         content.message = nil
         onPause = nil
+        onRecenter = nil
     }
 
     private func rebuildPanels() {
@@ -58,11 +72,18 @@ final class PrivacyOverlayController {
             }
             let displaysInformation = settings.infoOnAllDisplays || screen == primaryScreen
             let panel = makePanel(for: screen)
+            // Every covered screen gets its own target: whichever one the user faces
+            // and taps becomes the reference, which beats assuming the primary screen.
+            let stableID = Self.stableDisplayID(for: displayID)
+            let recenterHandler: (() -> Void)? = onRecenter.map { handler in
+                { handler(stableID) }
+            }
             panel.contentView = NSHostingView(rootView: PrivacyOverlayView(
                 settings: settings,
                 content: content,
                 displaysInformation: displaysInformation,
-                onPause: { [weak self] in self?.onPause?() }
+                onPause: { [weak self] in self?.onPause?() },
+                onRecenter: recenterHandler
             ))
             panels[displayID] = panel
             panel.orderFrontRegardless()
@@ -70,6 +91,15 @@ final class PrivacyOverlayController {
                 panel.makeKey()
             }
         }
+    }
+
+    /// Must match `ScreenPrivacyStore.connectedDisplays()`, since the result is used to
+    /// look up a saved display profile.
+    private static func stableDisplayID(for displayID: CGDirectDisplayID) -> String {
+        if let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue() {
+            return CFUUIDCreateString(nil, uuid) as String
+        }
+        return String(displayID)
     }
 
     private func makePanel(for screen: NSScreen) -> PrivacyOverlayPanel {

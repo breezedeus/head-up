@@ -7,15 +7,6 @@ BUNDLE_ID="com.king.headup"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIST_DIR="$ROOT_DIR/dist"
-APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-APP_CONTENTS="$APP_BUNDLE/Contents"
-APP_MACOS="$APP_CONTENTS/MacOS"
-APP_BINARY="$APP_MACOS/$APP_NAME"
-INFO_PLIST="$APP_CONTENTS/Info.plist"
-VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
-BUILD_NUMBER="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
-RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
 # HEADUP_PREVIEW=1 builds a preview/debug binary: compile with -DHEADUP_DEBUG so
 # high-frequency drift diagnostics are included and elevated to info-level logs.
@@ -28,11 +19,27 @@ if [[ "$PREVIEW_BUILD" == "1" ]]; then
   SWIFT_BUILD_ARGS+=(-Xswiftc -DHEADUP_DEBUG)
 fi
 
+# The bundle name never carries a preview suffix: this script installs nothing and
+# produces no archive, so a preview and a normal build simply replace each other at
+# the same path. A preview bundle is identifiable by HeadUpPreviewBuild in its
+# Info.plist and by the build message below.
+DIST_DIR="$ROOT_DIR/dist"
+APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+APP_CONTENTS="$APP_BUNDLE/Contents"
+APP_MACOS="$APP_CONTENTS/MacOS"
+APP_BINARY="$APP_MACOS/$APP_NAME"
+INFO_PLIST="$APP_CONTENTS/Info.plist"
+VERSION="$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")"
+BUILD_NUMBER="$(git -C "$ROOT_DIR" rev-list --count HEAD 2>/dev/null || echo 1)"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
+
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 cd "$ROOT_DIR"
-swift build "${SWIFT_BUILD_ARGS[@]}"
-BUILD_DIR="$(swift build "${SWIFT_BUILD_ARGS[@]}" --show-bin-path)"
+# macOS ships bash 3.2, where `set -u` treats an empty array expansion as unbound.
+# The `${a[@]+...}` guard keeps a non-preview build (empty args) working.
+swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"}
+BUILD_DIR="$(swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"} --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 if [[ "$PREVIEW_BUILD" == "1" ]]; then
   echo "Preview build: HEADUP_DEBUG enabled, verbose drift logs will be recorded."

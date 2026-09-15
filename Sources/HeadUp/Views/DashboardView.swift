@@ -373,6 +373,7 @@ private struct ScreenPrivacyDashboardCard: View {
         case .watching: return "checkmark.shield.fill"
         case .covered, .revealingSoon: return "eye.slash.fill"
         case .trackingLost: return "exclamationmark.shield.fill"
+        case .needsRecenter: return "scope"
         default: return "shield"
         }
     }
@@ -380,7 +381,7 @@ private struct ScreenPrivacyDashboardCard: View {
     private var iconColor: Color {
         switch store.status {
         case .watching: return .green
-        case .covered, .trackingLost, .coveringSoon: return .orange
+        case .covered, .trackingLost, .coveringSoon, .needsRecenter: return .orange
         default: return .secondary
         }
     }
@@ -397,6 +398,10 @@ private struct ScreenPrivacyDashboardCard: View {
     private var actionTitle: String {
         switch store.status {
         case .disabled, .needsCalibration: return L10n.text("校准屏幕")
+        case .needsRecenter:
+            return store.recenterCountdown > 0
+                ? L10n.text("{0}…", "\(store.recenterCountdown)")
+                : L10n.text("对准中心")
         case .paused: return L10n.text("继续")
         default: return L10n.text("暂停")
         }
@@ -406,6 +411,10 @@ private struct ScreenPrivacyDashboardCard: View {
         switch store.status {
         case .disabled, .needsCalibration:
             store.startCalibration()
+        case .needsRecenter:
+            // No overlay to aim at from here, so count down and let the user look at
+            // the screen center first.
+            store.beginRecenterCountdown()
         default:
             store.togglePause()
         }

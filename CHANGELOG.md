@@ -1,5 +1,53 @@
 # HeadUp 更新日志 / Changelog
 
+## HeadUp 0.3.2 [2026-09-15]
+
+### 中文
+
+#### 新功能
+
+- 多显示器下摘戴耳机后，不再需要重新校准全部屏幕。AirPods 的水平角零点每次连接都是任意的，但各屏之间的相对角度不变，所以只需一次对准就能恢复：遮挡界面正中会出现"对准这里"按钮，正视它并点按即可立即恢复保护，已保存的逐屏校准原样复用。菜单栏面板也提供"对准中心"（3 秒倒计时后自动采样）。
+- 遮挡时随时可以手动对准：如果觉得边界偏了，不必重新校准，正视屏幕中心点一下按钮即可重新对齐。
+
+#### 修复与可靠性
+
+- 修复摘下再戴上耳机后"设置像是丢了"的问题。此前多显示器配置在每次追踪中断（以及每次启动）都会被标记为需要重新校准，逐屏配置虽然一直保存在本地却不被使用，重新校准又会用新采集值覆盖旧值。现在改为只需一次轻量对准。
+- 修复长时间佩戴后漂移修正会彻底失效的问题：此前学习只在“未遮挡”状态进行，而样本又只在工作区内部采集，一旦漂移把头部推到边界之外就会互锁——修正被永久冻结，只能重新校准。现在遮挡期间会单独收集静止姿态，若工作区连续 3 分钟无法回到、且头部一直稳定停在边界外不远处，会自动重新对准并恢复显示。
+- 修复 AirPods 短暂断流后工作区突然跑偏的问题：传感器时间跳变只清空采样缓冲，不再丢弃已学到的修正量。物理漂移不会因为断流而归零，此前一并清零会让工作区瞬间跳回原始校准中心，偏移量正好等于已累积的漂移，往往直接触发上面的互锁。
+- 取消修正量的固定上限（原为 `min(15°, 最小边界角 × 0.5)`）。漂移随时间无界增长，任何固定上限最终都会被突破并让工作区永久偏置；窄工作区尤其受限。现在改为依靠单次步长限制、对称采样窗口和分布宽度门控来约束错误修正，仅保留 90° 的兜底上限。
+- 加入漂移速率前馈：纯比例控制对匀速漂移存在固定稳态滞后，此前边界余量会被这部分滞后长期占用。
+- 修正采样的删失偏差：此前样本在工作区边界处被裁剪，中位数被系统性拉回中心，导致漂移被低估、且漂移越大低估越重。现在改为在当前中心周围的对称窗口内采样。
+- 单显示器配置现在也享受漂移修正。此前只有逐屏校准走漂移估计，单一配置仅依赖追踪中断后的重新对中，与 README 中“逐屏学习并抵消漂移”的说明不一致。
+- 稳态单次步长收紧到 0.5°（校准后前 90 秒仍为 1°，用于快速消除已存在的偏移），使其接近真实漂移速率，降低“长时间偏坐”被当成漂移的程度。
+- 采样节流改为逐屏独立，此前为全局共享。
+
+#### 验证
+
+- 新增 11 项测试：越界后自动恢复、大角度转头不触发恢复、短时遮挡不触发、姿态不稳不触发、多屏归属歧义不触发、断流保留修正量、窄工作区可跟踪大漂移、匀速漂移残差、跨屏交界采样节流、单显示器路径漂移修正。
+
+### English
+
+#### Features
+
+- Refitting an earbud on a multi-display setup no longer requires recalibrating every screen. The AirPods yaw datum is arbitrary per connection, but the angles between displays are not, so one aim restores the whole layout: an "Aim here" target appears at the center of the covered screen, and facing it and tapping resumes protection immediately, reusing the saved per-display calibration. The menu bar panel offers "Recenter" as well, with a 3-second countdown.
+- Recentering is available by hand whenever a screen is covered, so boundaries that feel off can be re-aimed without a full recalibration.
+
+#### Fixes and reliability
+
+- Fixed saved settings appearing to vanish after removing and refitting an earbud. A multi-display setup was marked as needing recalibration on every tracking loss (and every launch); the per-display profiles stayed on disk but went unused, and recalibrating then overwrote them. A one-tap recenter now covers this.
+- Fixed drift correction becoming permanently unusable in a long session. Learning ran only while uncovered, and samples were only collected inside the work area, so once drift pushed the head past a boundary the two conditions deadlocked and the correction froze until a recalibration. Stationary poses are now collected while covered, and if the work area stays unreachable for 3 minutes while the head is parked steadily just outside it, the work area re-aligns and the screen is revealed.
+- Fixed the work area jumping off-target after a brief AirPods dropout. A sensor time gap now clears only the sample buffer and keeps the learned correction. Physical drift does not reset because the stream broke, so discarding the correction snapped the work area back by exactly the drift it had removed — usually straight into the deadlock above.
+- Removed the fixed ceiling on accumulated correction (previously `min(15°, smallest boundary × 0.5)`). Drift grows without bound, so any fixed ceiling is eventually exceeded and leaves the work area permanently offset; narrow work areas were capped hardest. A wrong correction is now contained by the per-check slew limit, a symmetric acceptance window, and the spread gate, with a 90° runaway guard.
+- Added drift-rate feed-forward. A pure proportional controller trails steady drift by a fixed residual, which was consuming boundary margin for the whole session.
+- Fixed censoring bias in sampling. Samples were clipped at the work-area boundary, which pulled the median back toward the center and under-estimated the drift — worsening as the drift grew. Samples now come from a symmetric window around the current center.
+- Single-display setups now get drift correction too. Only per-display calibration ran through the estimator; the single-profile path relied on recentering after a dropout, which did not match the README.
+- Tightened the steady-state step to 0.5° (the first 90 s after calibration still uses 1° to clear a pre-existing offset), keeping it near the real drift rate so sitting off-center is less able to drag the work area.
+- Sample throttling is now per display instead of shared.
+
+#### Verification
+
+- 11 new tests: recovery past a boundary, no recovery on a deliberate large turn, no recovery on a short stall, no recovery on an unsteady pose, no recovery when the display is ambiguous, corrections kept across a stream gap, large drift tracked in a narrow work area, steady-drift residual, seam-crossing sample throttling, and single-display drift correction.
+
 ## HeadUp 0.3.1 [2026-09-14]
 
 ### 中文

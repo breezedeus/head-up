@@ -143,6 +143,9 @@ enum ScreenPrivacyCalibrationStage: CaseIterable, Equatable {
 enum ScreenPrivacyRuntimeStatus: Equatable {
     case disabled
     case needsCalibration
+    /// Saved calibration is still valid; only this connection's yaw datum is missing,
+    /// so a one-tap recenter is enough instead of a full recalibration.
+    case needsRecenter
     case calibrating(ScreenPrivacyCalibrationStage)
     case watching
     case coveringSoon
@@ -155,6 +158,7 @@ enum ScreenPrivacyRuntimeStatus: Equatable {
         switch self {
         case .disabled: return L10n.text("屏幕保护未开启")
         case .needsCalibration: return L10n.text("需要校准工作区")
+        case .needsRecenter: return L10n.text("需要重新对准中心")
         case .calibrating(let stage): return stage.title
         case .watching: return L10n.text("屏幕保护已就绪")
         case .coveringSoon: return L10n.text("头部已离开工作区")

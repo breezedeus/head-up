@@ -19,12 +19,17 @@ final class ScreenPrivacyStore: ObservableObject {
     @Published private(set) var captureCountdown = 0
     @Published private(set) var completedDisplayIDs: Set<String> = []
     @Published private(set) var needsSessionCalibration = false
+    /// Set when the per-connection yaw datum is unknown but the saved calibration is
+    /// still valid, so a one-tap recenter is enough. See `recenter(referenceDisplayID:)`.
+    @Published private(set) var needsRecenter = false
+    @Published private(set) var recenterCountdown = 0
     @Published private(set) var driftStatusByID: [String: ScreenPrivacyDriftStatus] = [:]
     private var driftEstimator = ScreenPrivacyDriftEstimator()
     private var captureTask: Task<Void, Never>?
     private var displayObserver: NSObjectProtocol?
     private var languageObserver: NSObjectProtocol?
     private let displaysProvider: @MainActor () -> [CalibrationDisplay]
+    private let notificationCenter: NotificationCenter
     private var draftProfiles: [ScreenPrivacyDisplayProfile] = []
 
     struct CalibrationDisplay: Identifiable {
@@ -62,6 +67,17 @@ final class ScreenPrivacyStore: ObservableObject {
     private var isTrackingAvailable = false
     private var needsAutomaticRecentering = false
     private var isPaused = false
+    /// AirPods yaw is measured from an arbitrary datum established per connection, so
+    /// the absolute `centerYaw` of a saved profile is meaningless after a reconnect.
+    /// The angles *between* displays are stable, so one global offset restores the
+    /// whole layout. Deliberately not persisted: it belongs to this connection only.
+    private var sessionYawOffset = 0.0
+    private var sessionPitchOffset = 0.0
+    /// Recent poses, so a recenter can use where the head actually was just before the
+    /// tap rather than the single frame that happens to arrive after it.
+    private var recentPoses: [(time: TimeInterval, yaw: Double, pitch: Double)] = []
+    private var recenterTask: Task<Void, Never>?
+    private static let recenterPoseWindow: TimeInterval = 1.0
     private var weatherTask: Task<Void, Never>?
     private var lastWeatherCity: String?
     private var lastWeatherRefresh: Date?
@@ -69,25 +85,36 @@ final class ScreenPrivacyStore: ObservableObject {
     private var lastDriftPipelineTrace: TimeInterval?
     #endif
 
-    init(settings: ScreenPrivacySettings, displaysProvider: @escaping @MainActor () -> [CalibrationDisplay] = { ScreenPrivacyStore.connectedDisplays() }) {
+    /// `notificationCenter` is injectable so tests can drive display-layout and
+    /// language events without touching the process-wide center, where a posted
+    /// notification would reach every other store alive in the same process.
+    init(
+        settings: ScreenPrivacySettings,
+        displaysProvider: @escaping @MainActor () -> [CalibrationDisplay] = { ScreenPrivacyStore.connectedDisplays() },
+        notificationCenter: NotificationCenter = .default
+    ) {
         self.displaysProvider = displaysProvider
+        self.notificationCenter = notificationCenter
         self.settings = settings
         overlayController = PrivacyOverlayController(settings: settings, content: overlayContent)
         displayProfiles = settings.displayProfiles
         profile = settings.calibrationProfile
         if !displayProfiles.isEmpty {
             profile = displayProfiles.first?.calibration
-            needsSessionCalibration = true
+            // The datum is unknown until the first pose is aligned, but the saved
+            // per-display geometry is still good, so this needs a recenter rather than
+            // a full recalibration.
+            needsRecenter = true
         }
         needsAutomaticRecentering = profile != nil && displayProfiles.isEmpty
         hasArmedOnce = profile != nil
         status = settings.isEnabled
             ? (profile == nil ? .needsCalibration : .trackingLost)
             : .disabled
-        languageObserver = NotificationCenter.default.addObserver(forName: .headUpLanguageChanged, object: nil, queue: .main) { [weak self] _ in
+        languageObserver = notificationCenter.addObserver(forName: .headUpLanguageChanged, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in self?.refreshWeather(force: true) }
         }
-        displayObserver = NotificationCenter.default.addObserver(
+        displayObserver = notificationCenter.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in self?.displayLayoutChanged() }
@@ -95,14 +122,127 @@ final class ScreenPrivacyStore: ObservableObject {
     }
 
     deinit {
-        if let displayObserver { NotificationCenter.default.removeObserver(displayObserver) }
-        if let languageObserver { NotificationCenter.default.removeObserver(languageObserver) }
+        if let displayObserver { notificationCenter.removeObserver(displayObserver) }
+        if let languageObserver { notificationCenter.removeObserver(languageObserver) }
         captureTask?.cancel()
     }
 
+    /// Full reset. Use only when the calibration center itself changes.
     private func resetDriftLearning(reason: String) {
         driftEstimator.reset(reason: reason)
         driftStatusByID = [:]
+    }
+
+    /// Saved profiles shifted onto this connection's yaw datum.
+    private func sessionAligned(_ profiles: [ScreenPrivacyDisplayProfile]) -> [ScreenPrivacyDisplayProfile] {
+        guard sessionYawOffset != 0 || sessionPitchOffset != 0 else { return profiles }
+        return profiles.map { display in
+            var shifted = display
+            shifted.calibration = display.calibration.recentered(
+                yaw: ScreenPrivacyCalibrationProfile.normalizedAngle(display.calibration.centerYaw + sessionYawOffset),
+                pitch: display.calibration.centerPitch + sessionPitchOffset
+            )
+            return shifted
+        }
+    }
+
+    /// Circular mean of the poses held over the last second, so a stray frame cannot
+    /// skew the datum. Returns nil while the head is still moving.
+    private func steadyRecentPose() -> (yaw: Double, pitch: Double)? {
+        guard let newest = recentPoses.last else { return nil }
+        let window = recentPoses.filter { newest.time - $0.time <= Self.recenterPoseWindow }
+        guard window.count >= 5 else { return nil }
+        let mean = averaged(window.map { (yaw: $0.yaw, pitch: $0.pitch) })
+        let steady = window.allSatisfy {
+            abs(ScreenPrivacyCalibrationProfile.normalizedAngle($0.yaw - mean.yaw)) <= 4
+                && abs($0.pitch - mean.pitch) <= 4
+        }
+        return steady ? mean : nil
+    }
+
+    /// Restores the yaw datum from a single pose, assuming the head is pointed at the
+    /// center of `referenceDisplayID`.
+    ///
+    /// A full recalibration is unnecessary after a reconnect: only the datum is
+    /// unknown, and the saved geometry between displays still holds. Solving against
+    /// the saved base profile (not the already-shifted one) keeps this idempotent, so
+    /// tapping twice cannot compound the offset.
+    ///
+    /// Requires the displays not to have moved relative to each other. When the layout
+    /// does change, `needsSessionCalibration` is set and this refuses outright, because
+    /// no single offset can fit every screen again — a full recalibration is the only
+    /// way out. Returns false without changing anything in that case.
+    @discardableResult
+    func recenter(referenceDisplayID: String? = nil) -> Bool {
+        // Refused while a recalibration is pending: that flag means the saved geometry
+        // itself is stale (a display was added, removed, or rearranged), and no single
+        // offset can fit every screen again. Enforced here rather than left to the UI
+        // not to offer it, so a future entry point cannot silently mask a real move.
+        //
+        // Refused with tracking down for a sharper reason: the pose buffer is not cleared
+        // by the passage of time, and `steadyRecentPose` measures its window against the
+        // newest sample's own timestamp. Without this guard a tap after a disconnect
+        // succeeded off the pose held when the stream stopped, silently anchoring every
+        // boundary to wherever the head happened to be at that moment.
+        guard !displayProfiles.isEmpty, !needsSessionCalibration, isTrackingAvailable else { return false }
+        let reference = displayProfiles.first { $0.id == referenceDisplayID } ?? displayProfiles.first
+        guard let reference, let pose = steadyRecentPose() else {
+            calibrationErrorKey = "头部移动较多，请正视屏幕中心后重试"
+            return false
+        }
+        cancelRecenter()
+        sessionYawOffset = ScreenPrivacyCalibrationProfile.normalizedAngle(pose.yaw - reference.calibration.centerYaw)
+        sessionPitchOffset = pose.pitch - reference.calibration.centerPitch
+        needsRecenter = false
+        calibrationErrorKey = nil
+        // Corrections were measured against the previous datum.
+        resetDriftLearning(reason: "session recentered")
+        analyzer.reset()
+        hasArmedOnce = true
+        horizontalOffset = 0
+        verticalOffset = 0
+        let yawOffset = sessionYawOffset
+        let pitchOffset = sessionPitchOffset
+        HeadUpLog.privacy.info(
+            "Session recentered on [\(reference.name, privacy: .public)]: yaw offset \(HeadUpTrace.deg(yawOffset), privacy: .public), pitch offset \(HeadUpTrace.deg(pitchOffset), privacy: .public)"
+        )
+        if settings.isEnabled, !isPaused {
+            status = resumedStatus
+            overlayController.hide()
+        }
+        return true
+    }
+
+    /// Recenter after a countdown, for when the screen is not covered and the user has
+    /// to look at the screen center first.
+    func beginRecenterCountdown(delaySeconds: Int = 3) {
+        guard !displayProfiles.isEmpty, !needsSessionCalibration, isTrackingAvailable, recenterCountdown == 0 else { return }
+        calibrationErrorKey = nil
+        recenterCountdown = max(1, delaySeconds)
+        recenterTask = Task { [weak self] in
+            for remaining in stride(from: max(1, delaySeconds), through: 1, by: -1) {
+                guard let self, !Task.isCancelled else { return }
+                self.recenterCountdown = remaining
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.recenterCountdown = 0
+            if self.recenter() { NSSound(named: "Pop")?.play() }
+        }
+    }
+
+    func cancelRecenter() {
+        recenterTask?.cancel()
+        recenterTask = nil
+        recenterCountdown = 0
+    }
+
+    /// Synthetic display used by the single-profile path so it gets the same drift
+    /// correction as per-display calibration.
+    private static let singleDisplayID = "headup.single-display"
+
+    private func singleDisplayProfile(_ calibration: ScreenPrivacyCalibrationProfile) -> ScreenPrivacyDisplayProfile {
+        ScreenPrivacyDisplayProfile(id: Self.singleDisplayID, name: L10n.text("全部屏幕"), calibration: calibration)
     }
 
     #if HEADUP_DEBUG
@@ -137,6 +277,17 @@ final class ScreenPrivacyStore: ObservableObject {
         }
     }
 
+    /// Status to fall back to when protection resumes (enable, unpause, cancel).
+    /// Ordering matters: a missing calibration outranks a dead sensor, which outranks a
+    /// missing datum. Tracking comes before the datum because recentering needs a live
+    /// pose to read — reporting `needsRecenter` with the sensor down would offer an
+    /// action that `recenter()` refuses.
+    private var resumedStatus: ScreenPrivacyRuntimeStatus {
+        if profile == nil || needsSessionCalibration { return .needsCalibration }
+        if !isTrackingAvailable { return .trackingLost }
+        return needsRecenter ? .needsRecenter : .watching
+    }
+
     var requiresMotionUpdates: Bool {
         settings.isEnabled || calibrationStage != .idle
     }
@@ -145,6 +296,9 @@ final class ScreenPrivacyStore: ObservableObject {
         switch status {
         case .disabled: return L10n.text("开启后，头部离开设定工作区会自动遮挡全部屏幕")
         case .needsCalibration: return needsSessionCalibration ? L10n.text("请重新校准屏幕方向，恢复本次追踪") : L10n.text("在这里逐屏设置中心与四个边界")
+        case .needsRecenter: return recenterCountdown > 0
+            ? L10n.text("正视屏幕中心，{0} 秒后自动对准", "\(recenterCountdown)")
+            : L10n.text("已保存的校准仍然有效，正视屏幕中心对准一次即可")
         case .calibrating: return L10n.text("保持当前方向，正在采集头部角度")
         case .watching: return L10n.text("正在监测左右转头、仰头和低头")
         case .coveringSoon: return L10n.text("回到工作区可取消遮挡")
@@ -161,7 +315,7 @@ final class ScreenPrivacyStore: ObservableObject {
         isPaused = false
         analyzer.reset()
         if enabled {
-            status = profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
+            status = resumedStatus
         } else {
             status = .disabled
             stopPreviewOrOverlay()
@@ -204,7 +358,7 @@ final class ScreenPrivacyStore: ObservableObject {
         calibrationStartedAt = nil
         calibrationProgress = 0
         isCapturingCalibration = false
-        status = settings.isEnabled ? (isPaused ? .paused : (profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost))) : .disabled
+        status = settings.isEnabled ? (isPaused ? .paused : resumedStatus) : .disabled
         analyzer.reset()
         if settings.isEnabled, !isPaused, needsSessionCalibration, settings.keepCoveredOnTrackingLoss {
             showOverlay(message: "请校准屏幕方向后恢复保护")
@@ -215,7 +369,7 @@ final class ScreenPrivacyStore: ObservableObject {
     func togglePause() {
         if isPaused {
             isPaused = false
-            status = profile == nil || needsSessionCalibration ? .needsCalibration : (isTrackingAvailable ? .watching : .trackingLost)
+            status = resumedStatus
             if status == .trackingLost, hasArmedOnce, settings.keepCoveredOnTrackingLoss {
                 showOverlay(message: "AirPods 连接中断")
             }
@@ -348,6 +502,10 @@ final class ScreenPrivacyStore: ObservableObject {
     func handle(_ sample: MotionSample) {
         guard sample.yaw.isFinite, sample.pitch.isFinite, sample.sensorTimestamp.isFinite else { return }
         isTrackingAvailable = true
+        // Recorded before any gating below, so a recenter has poses to work with even
+        // while the normal pipeline is blocked waiting for one.
+        recentPoses.append((sample.sensorTimestamp, sample.yaw, sample.pitch))
+        recentPoses.removeAll { sample.sensorTimestamp - $0.time > Self.recenterPoseWindow * 2 }
         if needsAutomaticRecentering, displayProfiles.isEmpty, let storedProfile = profile {
             profile = storedProfile.recentered(yaw: sample.yaw, pitch: sample.pitch)
             needsAutomaticRecentering = false
@@ -377,8 +535,21 @@ final class ScreenPrivacyStore: ObservableObject {
                 #endif
                 return
             }
+            // The saved geometry is still good; only this connection's datum is unknown.
+            guard !needsRecenter else {
+                if status != .needsRecenter {
+                    status = .needsRecenter
+                    // No message: the target carries its own caption, on every covered
+                    // screen, while a message only renders where the clock does.
+                    showOverlay()
+                }
+                #if HEADUP_DEBUG
+                traceDriftPipeline(sample, note: "blocked: awaiting session recenter")
+                #endif
+                return
+            }
             let connected = Set(displaysProvider().map(\.id))
-            let active = displayProfiles.filter { connected.contains($0.id) }
+            let active = sessionAligned(displayProfiles).filter { connected.contains($0.id) }
             let reading = analyzer.process(
                 yaw: sample.yaw, pitch: sample.pitch, at: sample.sensorTimestamp,
                 profiles: active.map { driftEstimator.corrected($0) }, thresholds: settings.thresholds
@@ -400,13 +571,20 @@ final class ScreenPrivacyStore: ObservableObject {
         effectiveProfile.rightAngle = settings.rightAngle
         effectiveProfile.upAngle = settings.upAngle
         effectiveProfile.downAngle = settings.downAngle
+        // The single-profile path drifts exactly like the per-display one, so it runs
+        // through the same estimator instead of relying on recentering after a dropout.
+        let display = singleDisplayProfile(effectiveProfile)
         let reading = analyzer.process(
             yaw: sample.yaw,
             pitch: sample.pitch,
             at: sample.sensorTimestamp,
-            profile: effectiveProfile,
+            profile: driftEstimator.corrected(display),
             thresholds: settings.thresholds
         )
+        let didEvaluate = driftEstimator.process(
+            sample, displays: [display], learningAllowed: reading.phase == .watching
+        )
+        if didEvaluate { driftStatusByID = driftEstimator.statusByID }
         horizontalOffset = reading.horizontalOffset
         verticalOffset = reading.verticalOffset
         apply(reading.phase)
@@ -414,13 +592,34 @@ final class ScreenPrivacyStore: ObservableObject {
 
     func handleTrackingAvailabilityChanged(_ available: Bool) {
         isTrackingAvailable = available
+        if !available {
+            // These describe where the head was before the stream stopped, and nothing
+            // else prunes them: the pruning in `handle` runs only when a new sample
+            // arrives. Dropped here so no pose can outlive the connection it came from.
+            recentPoses.removeAll()
+        }
         if !available, calibrationStage != .idle {
             cancelCalibration()
             calibrationErrorKey = "头部追踪已中断，请连接 AirPods 后重新校准"
         }
         if !available, profile != nil {
             needsAutomaticRecentering = displayProfiles.isEmpty
-            if !displayProfiles.isEmpty { needsSessionCalibration = true }
+            // Only the per-connection yaw datum is lost here — the saved geometry and
+            // the angles between displays are unchanged, so a one-tap recenter is
+            // enough. Demanding a full recalibration for every earbud removal was what
+            // made a saved setup look like it had been discarded.
+            if !displayProfiles.isEmpty {
+                needsRecenter = true
+                sessionYawOffset = 0
+                sessionPitchOffset = 0
+                cancelRecenter()
+            }
+            // A full reset (not `resetSamples`) is right here: the yaw datum is
+            // arbitrary per connection, so the reference center is about to be
+            // redefined by recentering or recalibration, and corrections measured
+            // against the old center would be meaningless. Silent stream gaps that
+            // keep the same datum are handled inside the estimator, which preserves
+            // the corrections.
             resetDriftLearning(reason: "tracking unavailable")
         }
         guard settings.isEnabled, !isPaused else { return }
@@ -558,10 +757,20 @@ final class ScreenPrivacyStore: ObservableObject {
         }
     }
 
+    /// The centered target is offered whenever a saved per-display layout exists:
+    /// either the datum is missing, or the user judges the boundaries to have wandered
+    /// and wants to re-aim them by hand without redoing the whole calibration.
+    ///
+    /// Withheld while tracking is down. A recenter reads the pose the head is holding
+    /// right now, and with no live stream there is no such pose — offering the target
+    /// there would only invite a tap that cannot mean anything.
     private func showOverlay(message: String? = nil) {
         refreshWeather()
-        overlayController.show(message: message, onPause: { [weak self] in
-            self?.pauseProtection()
-        })
+        let offersRecenter = !displayProfiles.isEmpty && !needsSessionCalibration && isTrackingAvailable
+        overlayController.show(
+            message: message,
+            onPause: { [weak self] in self?.pauseProtection() },
+            onRecenter: offersRecenter ? { [weak self] id in self?.recenter(referenceDisplayID: id) } : nil
+        )
     }
 }

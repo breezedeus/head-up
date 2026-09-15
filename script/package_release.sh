@@ -10,13 +10,6 @@ BUILD_NUMBER="${HEADUP_BUILD_NUMBER:-$(git -C "$ROOT_DIR" rev-list --count HEAD)
 SIGNING_IDENTITY="${HEADUP_SIGNING_IDENTITY:-}"
 NOTARY_PROFILE="${HEADUP_NOTARY_PROFILE:-}"
 RELEASE_DIR="$ROOT_DIR/dist/release"
-APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
-APP_CONTENTS="$APP_BUNDLE/Contents"
-APP_MACOS="$APP_CONTENTS/MacOS"
-APP_RESOURCES="$APP_CONTENTS/Resources"
-ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.zip"
-DSYM_ZIP_PATH="$RELEASE_DIR/$APP_NAME-$VERSION.dSYM.zip"
-RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
 # HEADUP_PREVIEW=1 keeps the -DHEADUP_DEBUG verbose drift diagnostics in an
 # optimized release build and marks the bundle via HeadUpPreviewBuild in Info.plist.
@@ -28,6 +21,24 @@ SWIFT_BUILD_ARGS=(-c release --arch arm64 --arch x86_64)
 if [[ "$PREVIEW_BUILD" == "1" ]]; then
   SWIFT_BUILD_ARGS+=(-Xswiftc -DHEADUP_DEBUG)
 fi
+
+# A preview package carries verbose diagnostics and is not a shippable release, so
+# the archive is named apart from one. The suffix stays out of the bundle itself: what
+# users unzip and drop into /Applications is always "HeadUp.app", so a preview cannot
+# end up installed alongside a release under a second name while sharing its bundle ID.
+# A preview bundle is still identifiable by HeadUpPreviewBuild in its Info.plist.
+ARCHIVE_NAME="$APP_NAME"
+if [[ "$PREVIEW_BUILD" == "1" ]]; then
+  ARCHIVE_NAME="$APP_NAME-preview"
+fi
+
+APP_BUNDLE="$RELEASE_DIR/$APP_NAME.app"
+APP_CONTENTS="$APP_BUNDLE/Contents"
+APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
+ZIP_PATH="$RELEASE_DIR/$ARCHIVE_NAME-$VERSION.zip"
+DSYM_ZIP_PATH="$RELEASE_DIR/$ARCHIVE_NAME-$VERSION.dSYM.zip"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 
 require_xcbuild_for_universal_build() {
   local developer_dir
@@ -89,8 +100,10 @@ cd "$ROOT_DIR"
 if [[ "$PREVIEW_BUILD" == "1" ]]; then
   echo "Preview release: HEADUP_DEBUG enabled, verbose drift logs will be recorded."
 fi
-swift build "${SWIFT_BUILD_ARGS[@]}"
-BUILD_DIR="$(swift build "${SWIFT_BUILD_ARGS[@]}" --show-bin-path)"
+# macOS ships bash 3.2, where `set -u` treats an empty array expansion as unbound.
+# The `${a[@]+...}` guard keeps a non-preview build (empty args) working.
+swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"}
+BUILD_DIR="$(swift build ${SWIFT_BUILD_ARGS[@]+"${SWIFT_BUILD_ARGS[@]}"} --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
 mkdir -p "$RELEASE_DIR"
