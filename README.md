@@ -5,7 +5,7 @@
 **While you work with AirPods, HeadUp looks after your neck and automatically covers your screens the moment you turn away.** It lives in the Mac menu bar and uses no camera. Face your screens again and the cover disappears — no clicks required.
 
 <p align="center">
-  <img src="docs/images/headup-status.png" width="380" alt="HeadUp menu bar panel: live head-down angle, the last 60 minutes of posture, and today's stats" />
+  <img src="docs/images/menu-panel-en.png" width="380" alt="HeadUp menu bar panel: current head angle, AirPods connection state, screen-protection actions, and daily posture history" />
 </p>
 
 ## Highlights
@@ -23,7 +23,13 @@
 In an office or shared workspace, when you turn to speak with a coworker, look down for something, or leave your desk, HeadUp blurs and dims every display the instant your head crosses a work boundary — reducing the chance that nearby people see private chats, customer information, or internal documents.
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings.png" width="720" alt="Screen Protection settings: workspace calibration and the allowed left, right, up, and down angles" />
+  <img src="docs/images/settings-screen-protection-en.png" width="720" alt="Screen Protection settings: enable coverage when your head leaves the work area, choose its action, and review calibration values" />
+</p>
+
+After enabling protection, HeadUp guides you through capturing the center, left, right, top, and bottom of each screen in your workspace.
+
+<p align="center">
+  <img src="docs/images/screen-calibration-en.png" width="380" alt="Screen Protection calibration: capture the center position for a selected display before recording its other boundaries" />
 </p>
 
 - Detects turns left and right as well as looking up and down — not just one direction
@@ -34,10 +40,16 @@ In an office or shared workspace, when you turn to speak with a coworker, look d
 - Temporarily removing one AirPod keeps your setup: a single display resumes on its own after a reconnect, and a multi-display setup just needs one tap on "Aim here" while facing the screen center — neither requires recalibrating
 - Press `Esc` to reveal your screens immediately and pause protection
 
+If AirPods tracking is interrupted while the cover is active, the cover stays in place and clearly asks you to reconnect and recalibrate before resuming protection.
+
+<p align="center">
+  <img src="docs/images/screen-protection-overlay-en.png" width="720" alt="Active privacy cover: a blurred and dimmed desktop with the time, an AirPods tracking warning, and a button to pause screen protection" />
+</p>
+
 The cover can also be a calm information page. Choose what it shows:
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings2.png" width="720" alt="Overlay Content settings: cover style, dimming level, date and time, weather, and custom text" />
+  <img src="docs/images/settings-overlay-content-en.png" width="720" alt="Overlay Content settings: cover style, dimming level, date and time, weather, and custom text" />
 </p>
 
 - System date and time, with optional seconds
@@ -50,7 +62,7 @@ The cover can also be a calm information page. Choose what it shows:
 HeadUp learns the difference between your upright position and the way you naturally look down. If your head stays lowered longer than the time you choose, it reminds you to move with a notification, sound, or on-screen prompt.
 
 <p align="center">
-  <img src="docs/images/headup-posture.png" width="720" alt="Posture Reminder settings: head-down threshold, duration, cooldown, and alert methods" />
+  <img src="docs/images/settings-posture-en.png" width="720" alt="Posture settings: head-down threshold, duration, cooldown, and alert methods" />
 </p>
 
 The menu bar panel always shows your current downward angle, the reminder countdown, posture changes over the last 60 minutes, and today's good-posture percentage (see the panel at the top).
@@ -64,6 +76,12 @@ The menu bar panel always shows your current downward angle, the reminder countd
 5. Open **Settings → Overlay Content** to choose the cover style and whether to show the time, weather, or a custom message.
 
 The four-direction setup adapts HeadUp to your desk — single displays, side-by-side displays, and stacked displays can all have different work areas, and all four angles of each display remain adjustable afterward. Once setup is complete, normal earbud changes and brief disconnections will not make you repeat it.
+
+General settings let you choose the app language, start HeadUp at login, and access update, privacy, and support links.
+
+<p align="center">
+  <img src="docs/images/settings-general-en.png" width="720" alt="General settings: app language, launch at login, update checks, and links to documentation, privacy, and support" />
+</p>
 
 A short guide appears on first launch; you can reopen it from the menu in the top-right corner of the menu bar panel.
 

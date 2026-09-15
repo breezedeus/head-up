@@ -5,7 +5,7 @@
 **戴着 AirPods 工作时，HeadUp 一边帮你照顾颈椎，一边在你转头离开时自动遮挡屏幕。** 它常驻 Mac 菜单栏、不使用摄像头；头部回到屏幕前，遮挡自动消失，可以直接继续工作。
 
 <p align="center">
-  <img src="docs/images/headup-status.png" width="380" alt="HeadUp 菜单栏面板：实时低头角度、最近 60 分钟姿态与今日统计" />
+  <img src="docs/images/menu-panel-zh-CN.png" width="380" alt="HeadUp 菜单栏面板：当前头部角度、AirPods 连接状态、屏幕保护操作与当天姿态记录" />
 </p>
 
 ## 功能一览
@@ -23,7 +23,13 @@
 在办公室和共享空间里，转身和同事说话、低头找东西，或起身离开座位时，HeadUp 会在头部越过工作边界的瞬间自动模糊并压暗所有屏幕，减少聊天记录、客户资料和内部文档被旁人看到的机会。
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings.png" width="720" alt="屏幕保护设置：工作区校准与左右上下允许角度" />
+  <img src="docs/images/settings-screen-protection-zh-CN.png" width="720" alt="屏幕保护设置：开启头部离开工作区时的遮挡、选择遮挡操作并查看校准数据" />
+</p>
+
+开启后，HeadUp 会引导你为工作区中的每块屏幕依次采集中心、左侧、右侧、上沿和下沿位置。
+
+<p align="center">
+  <img src="docs/images/screen-calibration-zh-CN.png" width="380" alt="屏幕保护校准：先为选中的显示器采集中心位置，再记录其他边界" />
 </p>
 
 - 同时识别向左、向右、仰头、低头，不会只盯着一个方向
@@ -34,10 +40,16 @@
 - 临时摘下一只耳机不会清空设置；单显示器重连后自动恢复，多显示器只需正视屏幕中心点一下"对准这里"，都不必重新校准
 - 紧急时按 `Esc`，立即显示屏幕并暂停保护
 
+遮挡已开启时，如果 AirPods 头部追踪中断，遮挡会保持显示，并明确提示你重新连接后再校准，随后恢复保护。
+
+<p align="center">
+  <img src="docs/images/screen-protection-overlay-zh-CN.png" width="720" alt="已开启的防窥遮挡：模糊压暗桌面，显示时间、AirPods 追踪中断提示和暂停屏幕保护按钮" />
+</p>
+
 遮挡画面也可以是一张安静的信息页，你可以选择显示什么：
 
 <p align="center">
-  <img src="docs/images/headup-protection-settings2.png" width="720" alt="遮挡内容设置：遮挡方式、压暗程度、日期时间、天气与自定义文字" />
+  <img src="docs/images/settings-overlay-content-zh-CN.png" width="720" alt="遮挡内容设置：遮挡方式、压暗程度、日期时间、天气与自定义文字" />
 </p>
 
 - 系统日期和时间，可选是否显示秒数
@@ -50,7 +62,7 @@
 HeadUp 会学习你坐直和平常低头时的角度。当你持续低头超过设定时间，它会通过通知、提示音或屏幕提示提醒你活动一下。
 
 <p align="center">
-  <img src="docs/images/headup-posture.png" width="720" alt="姿态提醒设置：低头阈值、持续时间、冷却时间与提醒方式" />
+  <img src="docs/images/settings-posture-zh-CN.png" width="720" alt="姿态设置：低头阈值、持续时间、冷却时间与提醒方式" />
 </p>
 
 菜单栏面板随时显示当前低头角度、提醒倒计时、最近 60 分钟的姿态变化，以及今天保持良好姿态的比例（见顶部面板图）。
@@ -64,6 +76,12 @@ HeadUp 会学习你坐直和平常低头时的角度。当你持续低头超过�
 5. 在 **设置 → 遮挡内容** 中选择遮挡样式，以及是否显示时间、天气和自定义文字。
 
 四向校准是为了适应你的桌面：单屏、双屏、上下摆放的屏幕都可以有不同的工作范围；校准后每块屏的四个角度仍可随时单独微调。完成一次后，普通的耳机切换和短暂断连不会要求你重新设置。
+
+通用设置中可以切换应用语言、设为登录时启动，并查看更新、隐私和支持链接。
+
+<p align="center">
+  <img src="docs/images/settings-general-zh-CN.png" width="720" alt="通用设置：应用语言、登录时启动、更新检查，以及文档、隐私和支持链接" />
+</p>
 
 首次启动会显示简短的使用指南，之后可以从菜单栏面板右上角的菜单再次打开。
 
