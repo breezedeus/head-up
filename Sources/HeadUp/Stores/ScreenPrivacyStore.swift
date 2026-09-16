@@ -31,10 +31,26 @@ final class ScreenPrivacyStore: ObservableObject {
     private let displaysProvider: @MainActor () -> [CalibrationDisplay]
     private let notificationCenter: NotificationCenter
     private var draftProfiles: [ScreenPrivacyDisplayProfile] = []
+    /// This notification is not layout-specific: it may also be posted for unrelated
+    /// display-parameter changes during an audio-device reconnect. Keep a physical
+    /// layout snapshot so only a real topology change invalidates calibration.
+    private var observedDisplayLayout: [DisplayLayout] = []
 
     struct CalibrationDisplay: Identifiable {
         let id: String
         let name: String
+        let frame: CGRect
+
+        init(id: String, name: String, frame: CGRect = .zero) {
+            self.id = id
+            self.name = name
+            self.frame = frame
+        }
+    }
+
+    private struct DisplayLayout: Equatable {
+        let id: String
+        let frame: CGRect
     }
 
     static func connectedDisplays() -> [CalibrationDisplay] {
@@ -45,7 +61,7 @@ final class ScreenPrivacyStore: ObservableObject {
             if let uuid = CGDisplayCreateUUIDFromDisplayID(displayID)?.takeRetainedValue() {
                 id = CFUUIDCreateString(nil, uuid) as String
             } else { id = number.stringValue }
-            return CalibrationDisplay(id: id, name: screen.localizedName)
+            return CalibrationDisplay(id: id, name: screen.localizedName, frame: screen.frame)
         }
     }
 
@@ -99,6 +115,7 @@ final class ScreenPrivacyStore: ObservableObject {
         overlayController = PrivacyOverlayController(settings: settings, content: overlayContent)
         displayProfiles = settings.displayProfiles
         profile = settings.calibrationProfile
+        observedDisplayLayout = Self.displayLayout(from: displaysProvider())
         if !displayProfiles.isEmpty {
             profile = displayProfiles.first?.calibration
             // The datum is unknown until the first pose is aligned, but the saved
@@ -117,7 +134,7 @@ final class ScreenPrivacyStore: ObservableObject {
         displayObserver = notificationCenter.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.displayLayoutChanged() }
+            Task { @MainActor [weak self] in self?.handleDisplayParametersChanged() }
         }
     }
 
@@ -264,6 +281,19 @@ final class ScreenPrivacyStore: ObservableObject {
         HeadUpTrace.driftVerbose("privacy pipeline raw yaw \(HeadUpTrace.deg(sample.yaw)) pitch \(HeadUpTrace.deg(sample.pitch)), phase \(String(describing: phase)), displays \(activeDisplays.count): \(detail)")
     }
     #endif
+
+    private static func displayLayout(from displays: [CalibrationDisplay]) -> [DisplayLayout] {
+        displays
+            .map { DisplayLayout(id: $0.id, frame: $0.frame) }
+            .sorted { $0.id < $1.id }
+    }
+
+    private func handleDisplayParametersChanged() {
+        let currentLayout = Self.displayLayout(from: displaysProvider())
+        guard currentLayout != observedDisplayLayout else { return }
+        observedDisplayLayout = currentLayout
+        displayLayoutChanged()
+    }
 
     private func displayLayoutChanged() {
         guard !displayProfiles.isEmpty || calibrationStage != .idle else { return }

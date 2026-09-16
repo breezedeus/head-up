@@ -255,9 +255,10 @@ struct ScreenPrivacyStoreTests {
         #expect(abs(store.horizontalOffset) < 5)
     }
 
-    /// A changed display layout invalidates the saved geometry, so no single offset can
-    /// restore it. Recentering must refuse rather than paper over a real move.
-    @Test func recenterRefusesWhenTheLayoutItselfChanged() async throws {
+    /// A system display-parameter notification is also delivered for changes that do
+    /// not move, add, or remove a display (including some AirPods reconnections). It
+    /// must not discard a still-valid five-point work-area calibration.
+    @Test func onlyAnActualDisplayLayoutChangeInvalidatesSavedCalibration() async throws {
         let name = "HeadUpTests.recenterLayout.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
@@ -270,9 +271,10 @@ struct ScreenPrivacyStoreTests {
         // A private center: posting on the shared one would cancel the in-flight
         // calibration of every other store alive in this test process.
         let center = NotificationCenter()
+        var displays = [ScreenPrivacyStore.CalibrationDisplay(id: "a", name: "内建")]
         let store = ScreenPrivacyStore(
             settings: settings,
-            displaysProvider: { [.init(id: "a", name: "内建")] },
+            displaysProvider: { displays },
             notificationCenter: center
         )
         store.handleTrackingAvailabilityChanged(true)
@@ -280,7 +282,15 @@ struct ScreenPrivacyStoreTests {
         // Baseline: a plain reconnect can still be recentered.
         #expect(store.recenter(referenceDisplayID: "a"))
 
-        // A screen-parameter change marks the saved geometry stale.
+        // An unrelated parameter notification must leave the saved geometry usable.
+        center.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        await Task.yield()
+        #expect(!store.needsSessionCalibration)
+        #expect(!store.needsRecenter)
+
+        // Adding a display really does change the layout, so full calibration is then
+        // required rather than silently reusing a geometry that can no longer fit.
+        displays.append(.init(id: "b", name: "外接"))
         center.post(name: NSApplication.didChangeScreenParametersNotification, object: nil)
         await Task.yield()
         for _ in 0..<20 where !store.needsSessionCalibration { await Task.yield() }

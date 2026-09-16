@@ -1,5 +1,27 @@
 # HeadUp 更新日志 / Changelog
 
+## HeadUp 0.3.3 [2026-09-16]
+
+### 中文
+
+#### 修复与可靠性
+
+- 修复 AirPods 短暂断开并重连后，屏幕保护错误要求重新录入中心、左、右、上、下五个点的问题。系统的“显示器参数变化”通知有时会随音频设备重连发出；现在会核对显示器 ID 和实际位置/尺寸，只有显示器确实新增、移除或改变布局时才作废已保存的五点校准。普通耳机重连后只需重新对准中心。
+
+#### 验证
+
+- 新增回归测试，覆盖无实际显示器布局变化的通知不会作废校准，以及真实新增显示器仍会要求重新校准。
+
+### English
+
+#### Fixes and reliability
+
+- Fixed screen protection incorrectly asking to re-enter the center, left, right, upper, and lower calibration points after a brief AirPods disconnect and reconnect. macOS can post a display-parameter notification during an audio-device reconnect; HeadUp now compares display IDs and actual positions/sizes, invalidating saved five-point calibration only when a display is added, removed, or its layout changes. A normal reconnection only needs a recenter.
+
+#### Verification
+
+- Added a regression test proving that a notification without a real display-layout change preserves calibration, while adding a display still requires recalibration.
+
 ## HeadUp 0.3.2 [2026-09-15]
 
 ### 中文
